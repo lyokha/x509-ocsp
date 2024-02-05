@@ -1,0 +1,52 @@
+name:                   x509-ocsp
+version:                0.1.0.0
+synopsis:               Build X509 OCSP requests and parse responses
+description:            Build X509 OCSP requests and parse responses
+homepage:               https://github.com/lyokha/x509-ocsp
+license:                BSD3
+license-file:           LICENSE
+extra-doc-files:        Changelog.md
+author:                 Alexey Radkov <alexey.radkov@gmail.com>
+maintainer:             Alexey Radkov <alexey.radkov@gmail.com>
+stability:              experimental
+copyright:              2024 Alexey Radkov
+category:               Network
+build-type:             Simple
+cabal-version:          1.20
+
+source-repository head
+  type:                 git
+  location:             https://github.com/lyokha/x509-ocsp.git
+
+library
+  default-language:     Haskell2010
+  build-depends:        base >= 4.8 && < 5
+                      , bytestring
+                      , crypton-x509
+                      , asn1-encoding
+                      , asn1-types
+                      , cryptohash-sha1
+
+  exposed-modules:      Data.X509.AIA
+                      , Data.X509.OCSP
+
+  ghc-options:         -Wall
+
+test-suite testOCSP
+  default-language:     Haskell2010
+  build-depends:        base >= 4.8
+                      , HUnit >= 1.6
+                      , bytestring
+                      , crypton-x509
+                      , asn1-encoding
+                      , asn1-types
+                      , pem
+                      , x509-ocsp
+
+  type:                 exitcode-stdio-1.0
+
+  main-is:              Test.hs
+  hs-source-dirs:       test
+
+  ghc-options:         -Wall
+
