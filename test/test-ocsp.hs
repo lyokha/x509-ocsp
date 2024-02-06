@@ -34,18 +34,17 @@ testAIA cert = TestCase $ getAIAFromCert @?= expected
  
 testOCSPRequestASN1 :: Certificate -> Certificate -> [ASN1] -> Test
 testOCSPRequestASN1 issuerCert cert = TestCase . (buildRequest @?=)
-    where buildRequest = encodeRequestASN1 issuerCert cert
+    where buildRequest = encodeOCSPRequestASN1 issuerCert cert
  
 testOCSPRequest :: Certificate -> Certificate -> ByteString -> Test
 testOCSPRequest issuerCert cert = TestCase . (buildRequest @?=) . L.fromStrict
-    where buildRequest = encodeRequest issuerCert cert
+    where buildRequest = encodeOCSPRequest issuerCert cert
  
 testOCSPResponse :: ByteString -> Test
-testOCSPResponse resp = TestCase $ getStatusFromResp @?= Just 0
-    where getStatusFromResp =
-              case decodeResponse $ L.fromStrict resp of
-                  Right (Start Sequence : Enumerated v : _) -> Just v
-                  _ -> Nothing
+testOCSPResponse resp = TestCase $ getRespStatus @?= Just OCSPRespSuccessful
+    where getRespStatus =
+              either (const Nothing) (pure . getOCSPResponseStatus) $
+                  decodeOCSPResponse $ L.fromStrict resp
 
 main :: IO ()
 main = do

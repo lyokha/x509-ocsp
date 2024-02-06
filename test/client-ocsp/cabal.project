@@ -1,0 +1,2 @@
+packages: client-ocsp.cabal ../../x509-ocsp.cabal
+

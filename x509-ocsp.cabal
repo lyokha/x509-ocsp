@@ -1,18 +1,20 @@
+cabal-version:          2.4
+
 name:                   x509-ocsp
 version:                0.1.0.0
-synopsis:               Build X509 OCSP requests and parse responses
+synopsis:               Basic X509 OCSP implementation
 description:            Build X509 OCSP requests and parse responses
 homepage:               https://github.com/lyokha/x509-ocsp
-license:                BSD3
+license:                BSD-3-Clause
 license-file:           LICENSE
-extra-doc-files:        Changelog.md
+extra-doc-files:        README.md, Changelog.md
+data-files:             test/data/**/*.crt test/data/*.der
 author:                 Alexey Radkov <alexey.radkov@gmail.com>
 maintainer:             Alexey Radkov <alexey.radkov@gmail.com>
 stability:              experimental
 copyright:              2024 Alexey Radkov
 category:               Network
 build-type:             Simple
-cabal-version:          1.20
 
 source-repository head
   type:                 git
@@ -32,7 +34,7 @@ library
 
   ghc-options:         -Wall
 
-test-suite testOCSP
+test-suite test-ocsp
   default-language:     Haskell2010
   build-depends:        base >= 4.8
                       , HUnit >= 1.6
@@ -45,7 +47,7 @@ test-suite testOCSP
 
   type:                 exitcode-stdio-1.0
 
-  main-is:              Test.hs
+  main-is:              test-ocsp.hs
   hs-source-dirs:       test
 
   ghc-options:         -Wall

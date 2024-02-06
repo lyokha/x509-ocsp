@@ -1,0 +1,34 @@
+name:                   client-ocsp
+version:                0.1.0.0
+synopsis:               Test OCSP client
+description:            Test OCSP client
+homepage:               https://github.com/lyokha/x509-ocsp
+license:                BSD3
+license-file:           LICENSE
+extra-doc-files:        Changelog.md
+author:                 Alexey Radkov <alexey.radkov@gmail.com>
+maintainer:             Alexey Radkov <alexey.radkov@gmail.com>
+stability:              experimental
+copyright:              2024 Alexey Radkov
+category:               Network
+build-type:             Simple
+cabal-version:          1.20
+
+executable client-ocsp
+  default-language:     Haskell2010
+  build-depends:        base >= 4.8
+                      , http-client
+                      , http-client-tls
+                      , bytestring
+                      , crypton-connection
+                      , crypton-x509
+                      , crypton-x509-system
+                      , crypton-x509-validation
+                      , tls
+                      , data-default-class
+                      , x509-ocsp
+
+  main-is:              client-ocsp.hs
+
+  ghc-options:         -Wall
+
