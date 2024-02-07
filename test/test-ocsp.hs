@@ -13,7 +13,7 @@ import qualified Data.ByteString.Lazy as L
 import Data.ASN1.Types
 import Data.ASN1.Encoding
 import Data.ASN1.BinaryEncoding
-import Data.List
+import Data.List (uncons)
  
 toCertificate :: ByteString -> Certificate
 toCertificate cert = either error getCertificate $ do
@@ -21,11 +21,8 @@ toCertificate cert = either error getCertificate $ do
     decodeSignedObject $ pemContent pem
  
 testAIA :: Certificate -> Test
-testAIA cert = TestCase $ getAIAFromCert @?= expected
-    where getAIAFromCert =
-              let Extensions exts = certExtensions cert
-              in exts >>= find isExtAIA >>= extensionDecode
-          expected = Just $ Right $
+testAIA cert = TestCase $ extensionGet (certExtensions cert) @?= expected
+    where expected = Just $
               ExtAuthorityInfoAccess
                   [AuthorityInfoAccess { aiaMethod = OCSP
                                        , aiaLocation = "http://localhost:8081"

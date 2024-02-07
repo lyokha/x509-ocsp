@@ -18,7 +18,6 @@
 module Data.X509.AIA (ExtAuthorityInfoAccess (..)
                      ,AuthorityInfoAccess (..)
                      ,AIAMethod (..)
-                     ,isExtAIA
                      ) where
 
 import Data.X509
@@ -54,10 +53,6 @@ instance OIDNameable AIAMethod where
     fromObjectID OidOCSP = Just OCSP
     fromObjectID OidCAIssuers = Just CAIssuers
     fromObjectID _ = Nothing
-
--- | Test if the passed extension is 'ExtAuthorityInfoAccess'.
-isExtAIA :: ExtensionRaw -> Bool
-isExtAIA = (OidAIA ==) . extRawOID
 
 data DecState = DecStart | DecMethod | DecLocation | DecEnd
 

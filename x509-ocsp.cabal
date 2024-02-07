@@ -13,7 +13,7 @@ author:                 Alexey Radkov <alexey.radkov@gmail.com>
 maintainer:             Alexey Radkov <alexey.radkov@gmail.com>
 stability:              experimental
 copyright:              2024 Alexey Radkov
-category:               Network
+category:               Data
 build-type:             Simple
 
 source-repository head
@@ -36,8 +36,8 @@ library
 
 test-suite test-ocsp
   default-language:     Haskell2010
-  build-depends:        base >= 4.8
-                      , HUnit >= 1.6
+  build-depends:        base >= 4.8 && < 5
+                      , HUnit >= 1.6.1.0
                       , bytestring
                       , crypton-x509
                       , asn1-encoding
