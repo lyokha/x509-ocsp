@@ -16,12 +16,6 @@ import Network.Connection
 import Network.TLS
 import Network.TLS.Extra.Cipher
 
--- Run openssl ocsp -index /dev/null -port 8081 \
---   -rsigner ../data/certs/root/rootCA.crt \
---   -rkey ../data/certs/root/rootCA.key \
---   -CA ../data/certs/root/rootCA.crt -text
--- from the current directory to serve OCSP requests.
-
 mkManager :: Manager -> IO Manager
 mkManager man = do
     systemCAStore <- getSystemCertificateStore
@@ -50,18 +44,23 @@ validateWithOCSPReq man store cache sid chain = do
                                         (AuthorityInfoAccess OCSP url : _)
                               ) -> do
                              req <- parseRequest $ C8.unpack url
-                             let body = encodeOCSPRequest certR certS
+                             let (body, certId) = encodeOCSPRequest certR certS
                                  req' = req { method = "POST"
                                             , requestHeaders = headers
                                             , requestBody = RequestBodyLBS body
                                             }
                              resp <- responseBody <$> httpLbs req' man
-                             return $ case decodeOCSPResponse resp of
-                                 Right v ->
-                                     case getOCSPResponseStatus v of
-                                         OCSPRespSuccessful -> success
-                                         s -> failure $
-                                                "OCSP: bad status " ++ show s
+                             return $ case decodeOCSPResponse certId resp of
+                                 Right (Just (OCSPResponse OCSPRespSuccessful
+                                                 (Just
+                                                     (OCSPResponsePayload s _)
+                                                 )
+                                             )
+                                       ) ->
+                                     if s == OCSPRespCertGood
+                                         then success
+                                         else failure $
+                                            "OCSP: bad status " ++ show s
                                  _ -> failure "OCSP: bad response"
                          _ -> return $ failure
                                 "OCSP: no OCSP data in server certificate"

@@ -2,6 +2,9 @@ authorityKeyIdentifier = keyid, issuer
 basicConstraints = CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
 authorityInfoAccess = OCSP;URI:http://localhost:8081
+database = $ENV::HOME/devel/x509-ocsp/test/data/index.txt
+default_ca = CA_default
+default_md = sha256
 subjectAltName = @alt_names
 [alt_names]
 DNS.1 = localhost

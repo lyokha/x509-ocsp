@@ -16,7 +16,6 @@ scenario, run
 $ cd test/client-ocsp
 $ cabal build
 $ nginx -c /path/to/x509-ocsp/test/client-ocsp/nginx.conf
-$ openssl ocsp -index /dev/null -port 8081 -rsigner ../data/certs/root/rootCA.crt -rkey ../data/certs/root/rootCA.key -CA ../data/certs/root/rootCA.crt -text
 ```
 
 You may need to make the root certificate trusted by the system before running
@@ -27,13 +26,63 @@ $ sudo trust anchor --store ../data/certs/root/rootCA.crt
 $ sudo update-ca-trust
 ```
 
-The test itself should print *Response: In backend 8010*.
+Now let's create a database file *index.txt* (its path should be equal to what
+written in clause *database* in file *../data/certs/openssl.cnf*),
+
+```ShellSession
+$ touch ../data/index.txt
+```
+
+and put there the server certificate.
+
+```ShellSession
+$ openssl ca -valid ../data/certs/server/server.crt -keyfile ../data/certs/root/rootCA.key -cert ../data/certs/root/rootCA.crt -config ../data/certs/openssl.cnf
+```
+
+The certificate has *good* status because we used option *-valid*. Run OpenSSL
+OCSP responder in a separate terminal window to see what it will print out.
+
+```ShellSession
+$ openssl ocsp -index ../data/index.txt -port 8081 -rsigner ../data/certs/root/rootCA.crt -rkey ../data/certs/root/rootCA.key -CA ../data/certs/root/rootCA.crt -text
+```
+
+Run the test. It should print *Response: In backend 8010*.
 
 ```ShellSession
 $ cabal run
 Response: In backend 8010
 ```
 
-The output of the OpenSSL OCSP responder will contain details of the request
-and the response.
+The output of the OCSP responder must contain details of the request and the
+response.
+
+Let's revoke the certificate.
+
+```ShellSession
+$ openssl ca -revoke ../data/certs/server/server.crt -keyfile ../data/certs/root/rootCA.key -cert ../data/certs/root/rootCA.crt -config ../data/certs/openssl.cnf
+```
+
+Wait some time and see what *cabal run* will print.
+
+```ShellSession
+$  cabal run
+client-ocsp: HttpExceptionRequest Request {
+  host                 = "localhost"
+  port                 = 8010
+  secure               = True
+  requestHeaders       = []
+  path                 = "/"
+  queryString          = ""
+  method               = "GET"
+  proxy                = Nothing
+  rawBody              = False
+  redirectCount        = 10
+  responseTimeout      = ResponseTimeoutDefault
+  requestVersion       = HTTP/1.1
+  proxySecureMode      = ProxySecureWithConnect
+}
+ (InternalException (HandshakeFailed (Error_Protocol "certificate rejected: [CacheSaysNo \"OCSP: bad status OCSPRespCertRevoked\"]" CertificateUnknown)))
+```
+
+ The certificate has been revoked and the handshake fails.
 
