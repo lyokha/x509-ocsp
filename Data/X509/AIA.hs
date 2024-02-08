@@ -43,7 +43,7 @@ data AuthorityInfoAccess = AuthorityInfoAccess { aiaMethod :: AIAMethod
                                                } deriving (Show, Eq)
 
 -- | Method of Authority Info Access (OCSP or CA issuers).
-data AIAMethod = OCSP | CAIssuers deriving  (Show, Eq)
+data AIAMethod = OCSP | CAIssuers deriving (Show, Eq)
 
 instance OIDable AIAMethod where
     getObjectID OCSP = OidOCSP

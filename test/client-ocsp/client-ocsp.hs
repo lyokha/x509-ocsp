@@ -60,7 +60,11 @@ validateWithOCSPReq man store cache sid chain = do
                                      if s == OCSPRespCertGood
                                          then success
                                          else failure $
-                                            "OCSP: bad status " ++ show s
+                                            "OCSP: bad certificate status " ++
+                                                show s
+                                 Right (Just (OCSPResponse s _)) ->
+                                     failure $ "OCSP: bad response status " ++
+                                         show s
                                  _ -> failure "OCSP: bad response"
                          _ -> return $ failure
                                 "OCSP: no OCSP data in server certificate"

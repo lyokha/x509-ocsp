@@ -81,7 +81,7 @@ client-ocsp: HttpExceptionRequest Request {
   requestVersion       = HTTP/1.1
   proxySecureMode      = ProxySecureWithConnect
 }
- (InternalException (HandshakeFailed (Error_Protocol "certificate rejected: [CacheSaysNo \"OCSP: bad status OCSPRespCertRevoked\"]" CertificateUnknown)))
+ (InternalException (HandshakeFailed (Error_Protocol "certificate rejected: [CacheSaysNo \"OCSP: bad certificate status OCSPRespCertRevoked\"]" CertificateUnknown)))
 ```
 
  The certificate has been revoked and the handshake fails.

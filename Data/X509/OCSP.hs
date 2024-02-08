@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, PatternSynonyms #-}
+{-# LANGUAGE LambdaCase, ViewPatterns, PatternSynonyms #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -85,25 +85,25 @@ encodeOCSPRequestASN1 issuerCert cert =
     let h1 = issuerDNHash cert
         h2 = pubKeyHash issuerCert
         sn = certSerial cert
-    in ([Start Sequence
-        ,Start Sequence
-        ,Start Sequence
-        ,Start Sequence
-        ,Start Sequence
-        ,Start Sequence
-        ,OID OidAlgorithmSHA1
-        ,Null
-        ,End Sequence
-        ,OctetString h1
-        ,OctetString h2
-        ,IntVal sn
-        ,End Sequence
-        ,End Sequence
-        ,End Sequence
-        ,End Sequence
-        ,End Sequence
-        ]
-       ,CertId h1 h2 sn
+    in ( [ Start Sequence
+         , Start Sequence
+         , Start Sequence
+         , Start Sequence
+         , Start Sequence
+         , Start Sequence
+         , OID OidAlgorithmSHA1
+         , Null
+         , End Sequence
+         , OctetString h1
+         , OctetString h2
+         , IntVal sn
+         , End Sequence
+         , End Sequence
+         , End Sequence
+         , End Sequence
+         , End Sequence
+         ]
+       , CertId h1 h2 sn
        )
 
 -- | Build and encode OCSP request into ASN1 DER format.
@@ -158,11 +158,11 @@ decodeOCSPResponse
     -> Either ASN1Error (Maybe OCSPResponse)
 decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
     [ Start Sequence
-      , Enumerated v
+      , Enumerated (toEnum . fromIntegral -> v)
       , End Sequence
-      ] -> return $ Just $ OCSPResponse (toEnum $ fromIntegral v) Nothing
+      ] -> return $ Just $ OCSPResponse v Nothing
     [ Start Sequence
-      , Enumerated v
+      , Enumerated (toEnum . fromIntegral -> v)
       , Start (Container Context 0)
       , Start Sequence
       , OID OidBasicOCSPResponse
@@ -177,11 +177,11 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                          : Start Sequence
                          : Start (Container Context 1)
                          : c1
-                         ) -> fst $ getConstructedEnd 0 $ drop 2 $ snd $
-                             getConstructedEnd 0 c1
+                         ) -> fst $ getConstructedEnd 0 $
+                             drop 2 $ snd $ getConstructedEnd 0 c1
                        _ -> []
           return $ case sr of
-                       (Start Sequence
+                       ( Start Sequence
                          : Start Sequence
                          : Start Sequence
                          : OID _
@@ -195,8 +195,8 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                          : _
                          ) -> if CertId h1 h2 sn == certId
                                   then case certStatus of
-                                           Other Context n _ ->
-                                               buildResponse v (toEnum n) pl
+                                           Other Context (toEnum -> n) _ ->
+                                               buildResponse v n pl
                                            Start (Container Context 1) ->
                                                buildResponse v
                                                    OCSPRespCertRevoked pl
@@ -204,7 +204,6 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                                   else Nothing
                        _ -> Nothing
     _ -> return Nothing
-    where buildResponse v n pl = Just $
-              OCSPResponse (toEnum $ fromIntegral v) $ Just $
-                  OCSPResponsePayload n pl
+    where buildResponse v n pl =
+              Just $ OCSPResponse v $ Just $ OCSPResponsePayload n pl
 
