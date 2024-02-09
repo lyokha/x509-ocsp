@@ -53,15 +53,17 @@ validateWithOCSPReq man store cache sid chain = do
                              return $ case decodeOCSPResponse certId resp of
                                  Right (Just (OCSPResponse OCSPRespSuccessful
                                                  (Just
-                                                     (OCSPResponsePayload s _)
+                                                     (OCSPResponsePayload
+                                                         (OCSPResponseCertData
+                                                             s _ _
+                                                         ) _
+                                                     )
                                                  )
                                              )
-                                       ) ->
-                                     if s == OCSPRespCertGood
-                                         then success
-                                         else failure $
-                                            "OCSP: bad certificate status " ++
-                                                show s
+                                       ) | s == OCSPRespCertGood -> success
+                                         | otherwise -> failure $
+                                             "OCSP: bad certificate status " ++
+                                                 show s
                                  Right (Just (OCSPResponse s _)) ->
                                      failure $ "OCSP: bad response status " ++
                                          show s

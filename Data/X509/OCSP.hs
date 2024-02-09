@@ -18,10 +18,11 @@
 module Data.X509.OCSP (CertId (..)
                       ,encodeOCSPRequestASN1
                       ,encodeOCSPRequest
-                      ,OCSPResponseStatus (..)
-                      ,OCSPResponseCertStatus (..)
                       ,OCSPResponse (..)
+                      ,OCSPResponseStatus (..)
                       ,OCSPResponsePayload (..)
+                      ,OCSPResponseCertData (..)
+                      ,OCSPResponseCertStatus (..)
                       ,decodeOCSPResponse
                       ) where
 
@@ -116,6 +117,14 @@ encodeOCSPRequest
     -> (L.ByteString, CertId)
 encodeOCSPRequest = (first (encodeASN1 DER) .) . encodeOCSPRequestASN1
 
+-- | OCSP response data.
+data OCSPResponse =
+    OCSPResponse { ocspRespStatus :: OCSPResponseStatus
+                   -- ^ Response status
+                 , ocspRespPayload :: Maybe OCSPResponsePayload
+                   -- ^ Response payload data
+                 } deriving (Show, Eq)
+
 -- | Status of the OCSP response as defined in /rfc6960/.
 data OCSPResponseStatus = OCSPRespSuccessful
                         | OCSPRespMalformedRequest
@@ -126,27 +135,29 @@ data OCSPResponseStatus = OCSPRespSuccessful
                         | OCSPRespUnauthorized
                         deriving (Show, Eq, Bounded, Enum)
 
+-- | OCSP response payload data.
+data OCSPResponsePayload =
+    OCSPResponsePayload { ocspRespCertData :: OCSPResponseCertData
+                          -- ^ Checked certificate data
+                        , ocspRespData :: [ASN1]
+                          -- ^ Whole response payload
+                        } deriving (Show, Eq)
+
+-- | OCSP response certificate data.
+data OCSPResponseCertData =
+    OCSPResponseCertData { ocspRespCertStatus :: OCSPResponseCertStatus
+                           -- ^ Status of checked certificate
+                         , ocspRespCertThisUpdate :: ASN1
+                           -- ^ Value of /thisUpdate/ as defined in /rfc6960/
+                         , ocspRespCertNextUpdate :: Maybe ASN1
+                           -- ^ Value of /nextUpdate/ as defined in /rfc6960/
+                         } deriving (Show, Eq)
+
 -- | Status of the checked certificate as defined in /rfc6960/.
 data OCSPResponseCertStatus = OCSPRespCertGood
                             | OCSPRespCertRevoked
                             | OCSPRespCertUnknown
                             deriving (Show, Eq, Bounded, Enum)
-
--- | OCSP response data.
-data OCSPResponse =
-    OCSPResponse { ocspRespStatus :: OCSPResponseStatus
-                   -- ^ Response status
-                 , ocspRespPayload :: Maybe OCSPResponsePayload
-                   -- ^ Response payload data
-                 } deriving (Show, Eq)
-
--- | OCSP response payload data.
-data OCSPResponsePayload =
-    OCSPResponsePayload { ocspRespCertStatus :: OCSPResponseCertStatus
-                          -- ^ Status of checked certificate
-                        , ocspRespData :: [ASN1]
-                          -- ^ Whole response payload
-                        } deriving (Show, Eq)
 
 -- | Decode OCSP response.
 --
@@ -192,18 +203,26 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                          : IntVal sn
                          : End Sequence
                          : certStatus
+                         : tu@(ASN1Time TimeGeneralized _ _)
+                         : ((\case
+                                 nu@(ASN1Time TimeGeneralized _ _) -> Just nu
+                                 _ -> Nothing
+                            ) -> nu
+                           )
                          : _
-                         ) -> if CertId h1 h2 sn == certId
-                                  then case certStatus of
-                                           Other Context (toEnum -> n) _ ->
-                                               buildResponse v n pl
-                                           Start (Container Context 1) ->
-                                               buildResponse v
-                                                   OCSPRespCertRevoked pl
-                                           _ -> Nothing
-                                  else Nothing
+                         ) | CertId h1 h2 sn == certId ->
+                               case certStatus of
+                                   Other Context (toEnum -> n) _ ->
+                                       buildResponse v
+                                           (OCSPResponseCertData n tu nu) pl
+                                   Start (Container Context 1) ->
+                                       buildResponse v
+                                           (OCSPResponseCertData
+                                                OCSPRespCertRevoked tu nu
+                                           ) pl
+                                   _ -> Nothing
                        _ -> Nothing
     _ -> return Nothing
-    where buildResponse v n pl =
-              Just $ OCSPResponse v $ Just $ OCSPResponsePayload n pl
+    where buildResponse v =
+              ((Just . OCSPResponse v . Just) .) . OCSPResponsePayload
 

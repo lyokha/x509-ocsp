@@ -42,8 +42,9 @@ testOCSPResponse :: CertId -> ByteString -> Test
 testOCSPResponse certId resp =
     TestCase $ getRespStatus @?= Just OCSPRespCertGood
     where getRespStatus = either (const Nothing)
-              (fmap ocspRespPayload >=> fmap ocspRespCertStatus) $
-                  decodeOCSPResponse certId $ L.fromStrict resp
+              (fmap ocspRespPayload >=>
+                  fmap (ocspRespCertStatus . ocspRespCertData)
+              ) $ decodeOCSPResponse certId $ L.fromStrict resp
 
 main :: IO ()
 main = do
