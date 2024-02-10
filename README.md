@@ -26,7 +26,7 @@ $ sudo trust anchor --store ../data/certs/root/rootCA.crt
 $ sudo update-ca-trust
 ```
 
-Now let's create a database file *index.txt* (its path should be equal to what
+Now let's create a database file *index.txt* (its path must be equal to what
 written in clause *database* in file *../data/certs/openssl.cnf*),
 
 ```ShellSession

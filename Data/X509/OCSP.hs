@@ -71,7 +71,7 @@ pubKeyHash cert = hashlazy $ L.drop (succ $ derLWidth $ L.head pk) pk
 -- This data is used when building OCSP requests and parsing OCSP responses.
 data CertId = CertId { certIdIssuerNameHash :: ByteString
                        -- ^ Value of /issuerNameHash/ as defined in /rfc6960/
-                     , certIdPubKeyHash :: ByteString
+                     , certIdIssuerKeyHash :: ByteString
                        -- ^ Value of /issuerKeyHash/ as defined in /rfc6960/
                      , certIdSerialNumber :: Integer
                        -- ^ Serial number of checked certificate
@@ -79,8 +79,8 @@ data CertId = CertId { certIdIssuerNameHash :: ByteString
 
 -- | Build and encode OCSP request in ASN1 format.
 --
--- Returns encoded request with an object of type 'CertId' which contains
--- hashes calculated using /SHA1/ algorithm.
+-- The returned value contains the encoded request and an object of type
+-- 'CertId' with hashes calculated by /SHA1/ algorithm.
 encodeOCSPRequestASN1
     :: Certificate              -- ^ Issuer certificate
     -> Certificate              -- ^ Checked certificate
@@ -112,8 +112,8 @@ encodeOCSPRequestASN1 issuerCert cert =
 
 -- | Build and encode OCSP request in ASN1 DER format.
 --
--- Returns encoded request with an object of type 'CertId' which contains
--- hashes calculated using /SHA1/ algorithm.
+-- The returned value contains the encoded request and an object of type
+-- 'CertId' with hashes calculated by /SHA1/ algorithm.
 encodeOCSPRequest
     :: Certificate              -- ^ Issuer certificate
     -> Certificate              -- ^ Checked certificate
@@ -166,6 +166,9 @@ data OCSPResponseCertStatus = OCSPRespCertGood
 --
 -- Value of the /certificate id/ is expected to be equal to what was returned
 -- by 'encodeOCSPRequest': it is used to check the correctness of the response.
+--
+-- /Left/ value gets returned on parse errors detected by 'decodeASN1'.
+-- /Right/ value with /Nothing/ gets returned on unexpected ASN1 contents.
 decodeOCSPResponse
     :: CertId                   -- ^ Certificate Id
     -> L.ByteString             -- ^ OCSP response
