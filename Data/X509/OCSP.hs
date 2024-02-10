@@ -225,14 +225,9 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
               >>= \(st, tu, tc2) ->
                   let nu = case tc2 of
                                Start (Container Context 0)
-                                 : ((\case
-                                         t@(ASN1Time TimeGeneralized _ _) ->
-                                             Just t
-                                         _ -> Nothing
-                                    ) -> t
-                                 )
+                                 : t@(ASN1Time TimeGeneralized _ _)
                                  : End (Container Context 0)
-                                 : _ -> t
+                                 : _ -> Just t
                                _ -> Nothing
                   in Just $ OCSPResponse v $
                          Just $ OCSPResponsePayload
