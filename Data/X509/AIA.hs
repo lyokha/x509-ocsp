@@ -42,7 +42,7 @@ data AuthorityInfoAccess = AuthorityInfoAccess { aiaMethod :: AIAMethod
                                                , aiaLocation :: ByteString
                                                } deriving (Show, Eq)
 
--- | Method of Authority Info Access (OCSP or CA issuers).
+-- | Method of Authority Info Access (/OCSP/ or /CA issuers/).
 data AIAMethod = OCSP | CAIssuers deriving (Show, Eq)
 
 instance OIDable AIAMethod where

@@ -58,9 +58,12 @@ pubKeyHash :: Certificate -> ByteString
 pubKeyHash cert = hashlazy $ L.drop (succ $ derLWidth $ L.head pk) pk
     where pk = case toASN1 (certPubKey cert) [] of
                    Start Sequence
-                       : Start Sequence : OID _ : _ : End Sequence
-                       : v@(BitString _)
-                       : _ -> L.drop 1 $ encodeASN1 DER $ pure v
+                     : Start Sequence
+                     : OID _
+                     : _
+                     : End Sequence
+                     : v@(BitString _)
+                     : _ -> L.drop 1 $ encodeASN1 DER $ pure v
                    _ -> error "bad pubkey sequence"
 
 -- | Certificate Id.
@@ -74,7 +77,7 @@ data CertId = CertId { certIdIssuerNameHash :: ByteString
                        -- ^ Serial number of checked certificate
                      } deriving (Show, Eq)
 
--- | Build and encode OCSP request into ASN1 format.
+-- | Build and encode OCSP request in ASN1 format.
 --
 -- Returns encoded request with an object of type 'CertId' which contains
 -- hashes calculated using /SHA1/ algorithm.
@@ -107,7 +110,7 @@ encodeOCSPRequestASN1 issuerCert cert =
        , CertId h1 h2 sn
        )
 
--- | Build and encode OCSP request into ASN1 DER format.
+-- | Build and encode OCSP request in ASN1 DER format.
 --
 -- Returns encoded request with an object of type 'CertId' which contains
 -- hashes calculated using /SHA1/ algorithm.
@@ -125,7 +128,7 @@ data OCSPResponse =
                    -- ^ Response payload data
                  } deriving (Show, Eq)
 
--- | Status of the OCSP response as defined in /rfc6960/.
+-- | Status of OCSP response as defined in /rfc6960/.
 data OCSPResponseStatus = OCSPRespSuccessful
                         | OCSPRespMalformedRequest
                         | OCSPRespInternalError
@@ -183,46 +186,53 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
       , End Sequence
       ] -> do
           pl <- decodeASN1 DER $ L.fromStrict resp'
-          let sr = case pl of
-                       ( Start Sequence
-                         : Start Sequence
-                         : Start (Container Context 1)
-                         : c1
-                         ) -> fst $ getConstructedEnd 0 $
-                             drop 2 $ snd $ getConstructedEnd 0 c1
-                       _ -> []
-          return $ case sr of
-                       ( Start Sequence
-                         : Start Sequence
-                         : Start Sequence
-                         : OID _
-                         : _
-                         : End Sequence
-                         : OctetString h1
-                         : OctetString h2
-                         : IntVal sn
-                         : End Sequence
-                         : certStatus
-                         : tu@(ASN1Time TimeGeneralized _ _)
-                         : ((\case
-                                 nu@(ASN1Time TimeGeneralized _ _) -> Just nu
-                                 _ -> Nothing
-                            ) -> nu
-                           )
-                         : _
-                         ) | CertId h1 h2 sn == certId ->
-                               case certStatus of
-                                   Other Context (toEnum -> n) _ ->
-                                       buildResponse v
-                                           (OCSPResponseCertData n tu nu) pl
-                                   Start (Container Context 1) ->
-                                       buildResponse v
-                                           (OCSPResponseCertData
-                                                OCSPRespCertRevoked tu nu
-                                           ) pl
+          return $
+              case pl of
+                  Start Sequence
+                    : Start Sequence
+                    : Start (Container Context 1)
+                    : c1 -> Just $ fst $ getConstructedEnd 0 $
+                                drop 2 $ snd $ getConstructedEnd 0 c1
+                  _ -> Nothing
+              >>= \case
+                      Start Sequence
+                        : Start Sequence
+                        : Start Sequence
+                        : OID _
+                        : _
+                        : End Sequence
+                        : OctetString h1
+                        : OctetString h2
+                        : IntVal sn
+                        : End Sequence
+                        : c2 | CertId h1 h2 sn == certId ->
+                            case c2 of
+                                Other Context (toEnum -> n) _
+                                  : c3 ->
+                                    Just (n, c3)
+                                Start (Container Context (toEnum -> n))
+                                  : c3 ->
+                                    Just (n, snd $ getConstructedEnd 0 c3)
+                                _ -> Nothing
+                      _ -> Nothing
+              >>= \(n, tc1) -> case tc1 of
+                                   tu@(ASN1Time TimeGeneralized _ _)
+                                     : c4 -> Just (n, tu, c4)
                                    _ -> Nothing
-                       _ -> Nothing
+              >>= \(st, tu, tc2) ->
+                  let nu = case tc2 of
+                               Start (Container Context 0)
+                                 : ((\case
+                                         t@(ASN1Time TimeGeneralized _ _) ->
+                                             Just t
+                                         _ -> Nothing
+                                    ) -> t
+                                 )
+                                 : End (Container Context 0)
+                                 : _ -> t
+                               _ -> Nothing
+                  in Just $ OCSPResponse v $
+                         Just $ OCSPResponsePayload
+                             (OCSPResponseCertData st tu nu) pl
     _ -> return Nothing
-    where buildResponse v =
-              ((Just . OCSPResponse v . Just) .) . OCSPResponsePayload
 

@@ -62,10 +62,11 @@ Let's revoke the certificate.
 $ openssl ca -revoke ../data/certs/server/server.crt -keyfile ../data/certs/root/rootCA.key -cert ../data/certs/root/rootCA.crt -config ../data/certs/openssl.cnf
 ```
 
-Wait some time and see what *cabal run* will print.
+Restart the OCSP responder and look at what *cabal run* will print (you may also
+run *cabal run* twice instead of restarting the responder).
 
 ```ShellSession
-$  cabal run
+$ cabal run
 client-ocsp: HttpExceptionRequest Request {
   host                 = "localhost"
   port                 = 8010
