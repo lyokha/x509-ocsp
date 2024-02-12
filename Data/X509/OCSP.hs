@@ -195,11 +195,12 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                     : Start Sequence
                     : Start (Container Context ctx)
                     : c1 | ctx `elem` [0..2] ->
-                        let skipVer = if ctx == 0
-                                          then snd . getConstructedEnd 0
-                                          else id
-                        in Just $ fst $ getConstructedEnd 0 $
-                               drop 2 $ snd $ getConstructedEnd 0 $ skipVer c1
+                        let skipVersion =
+                                if ctx == 0
+                                    then drop 1 . skipCurrentContainer
+                                    else id
+                        in Just $ getCurrentContainer $
+                               drop 2 $ skipCurrentContainer $ skipVersion c1
                   _ -> Nothing
               >>= \case
                       Start Sequence
@@ -215,11 +216,9 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                         : c2 | CertId h1 h2 sn == certId ->
                             case c2 of
                                 Other Context (toEnum -> n) _
-                                  : c3 ->
-                                    Just (n, c3)
+                                  : c3 -> Just (n, c3)
                                 Start (Container Context (toEnum -> n))
-                                  : c3 ->
-                                    Just (n, snd $ getConstructedEnd 0 c3)
+                                  : c3 -> Just (n, skipCurrentContainer c3)
                                 _ -> Nothing
                       _ -> Nothing
               >>= \(n, tc1) -> case tc1 of
@@ -237,4 +236,6 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                          Just $ OCSPResponsePayload
                              (OCSPResponseCertData st tu nu) pl
     _ -> return Nothing
+    where getCurrentContainer = fst . getConstructedEnd 0
+          skipCurrentContainer = snd . getConstructedEnd 0
 
