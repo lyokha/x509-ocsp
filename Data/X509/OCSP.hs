@@ -199,7 +199,7 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                                 if ctx == 0
                                     then drop 1 . skipCurrentContainer
                                     else id
-                        in Just $ getCurrentContainer $
+                        in Just $ getCurrentContainerContents $
                                drop 2 $ skipCurrentContainer $ skipVersion c1
                   _ -> Nothing
               >>= \case
@@ -236,6 +236,6 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                          Just $ OCSPResponsePayload
                              (OCSPResponseCertData st tu nu) pl
     _ -> return Nothing
-    where getCurrentContainer = fst . getConstructedEnd 0
+    where getCurrentContainerContents = fst . getConstructedEnd 0
           skipCurrentContainer = snd . getConstructedEnd 0
 
