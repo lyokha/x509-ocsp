@@ -193,9 +193,13 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
               case pl of
                   Start Sequence
                     : Start Sequence
-                    : Start (Container Context 1)
-                    : c1 -> Just $ fst $ getConstructedEnd 0 $
-                                drop 2 $ snd $ getConstructedEnd 0 c1
+                    : Start (Container Context ctx)
+                    : c1 | ctx `elem` [0..2] ->
+                        let skipVer = if ctx == 0
+                                          then snd . getConstructedEnd 0
+                                          else id
+                        in Just $ fst $ getConstructedEnd 0 $
+                               drop 2 $ snd $ getConstructedEnd 0 $ skipVer c1
                   _ -> Nothing
               >>= \case
                       Start Sequence

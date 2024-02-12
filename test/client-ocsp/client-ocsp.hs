@@ -38,7 +38,7 @@ validateWithOCSPReq man store cache sid chain = do
         then case chain of
                  CertificateChain [ getCertificate -> certS
                                   , getCertificate -> certR
-                                  ] -> do
+                                  ] ->
                      case extensionGet $ certExtensions certS of
                          Just (ExtAuthorityInfoAccess
                                         (AuthorityInfoAccess OCSP url : _)
@@ -64,7 +64,7 @@ validateWithOCSPReq man store cache sid chain = do
                                          | otherwise -> failure $
                                              "OCSP: bad certificate status " ++
                                                  show s
-                                 Right (Just (OCSPResponse s _)) ->
+                                 Right (Just (OCSPResponse s Nothing)) ->
                                      failure $ "OCSP: bad response status " ++
                                          show s
                                  _ -> failure "OCSP: bad response"
