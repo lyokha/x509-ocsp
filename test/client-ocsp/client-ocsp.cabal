@@ -1,14 +1,9 @@
 name:                   client-ocsp
 version:                0.1.0.0
 synopsis:               Test OCSP client
-description:            Test OCSP client
-homepage:               https://github.com/lyokha/x509-ocsp
-license:                BSD3
-license-file:           LICENSE
-extra-doc-files:        Changelog.md
+description:            Run OCSP check during TLS handshake
 author:                 Alexey Radkov <alexey.radkov@gmail.com>
 maintainer:             Alexey Radkov <alexey.radkov@gmail.com>
-stability:              experimental
 copyright:              2024 Alexey Radkov
 category:               Network
 build-type:             Simple
