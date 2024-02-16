@@ -36,9 +36,10 @@ validateWithOCSPReq man store cache sid chain = do
     verr <- validateDefault store cache sid chain
     if null verr
         then case chain of
-                 CertificateChain [ getCertificate -> certS
-                                  , getCertificate -> certR
-                                  ] ->
+                 CertificateChain ( (getCertificate -> certS)
+                                  : (getCertificate -> certR)
+                                  : _
+                                  ) ->
                      case extensionGet $ certExtensions certS of
                          Just (ExtAuthorityInfoAccess
                                         (AuthorityInfoAccess OCSP url : _)
