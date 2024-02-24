@@ -32,7 +32,7 @@ $ sudo update-ca-trust
 Generate files req.der and resp.der for cabal test
 --------------------------------------------------
 
-Run OpenSSL responder for getting a response.
+Run OpenSSL OCSP responder for getting a response.
 
 ```ShellSession
 $ openssl ocsp -index ./index.txt -port 8081 -rsigner ./certs/root/rootCA.crt -rkey ./certs/root/rootCA.key -CA ./certs/root/rootCA.crt -resp_key_id -nmin 1 -text
