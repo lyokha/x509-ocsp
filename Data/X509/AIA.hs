@@ -54,7 +54,7 @@ instance OIDNameable AIAMethod where
     fromObjectID OidCAIssuers = Just CAIssuers
     fromObjectID _ = Nothing
 
-data DecState = DecStart | DecMethod | DecLocation | DecEnd
+data DecState = DecStart | DecMethod | DecLocation OID | DecEnd
 
 instance Extension ExtAuthorityInfoAccess where
     extOID = const OidAIA
@@ -72,21 +72,20 @@ instance Extension ExtAuthorityInfoAccess where
     extDecode [Start Sequence, End Sequence] =
         Right $ ExtAuthorityInfoAccess []
     extDecode (Start Sequence : encAia) =
-        go DecStart Nothing encAia []
-        where go DecStart Nothing (Start Sequence : next) =
-                  go DecMethod Nothing next
-              go DecMethod Nothing (OID v : next) =
-                  go DecLocation (Just v) next
-              go DecLocation (Just v) (Other Context 6 s : next) =
-                  case fromObjectID v of
+        go DecStart encAia []
+        where go DecStart (Start Sequence : next) =
+                  go DecMethod next
+              go DecMethod (OID oid : next) =
+                  go (DecLocation oid) next
+              go (DecLocation oid) (Other Context 6 s : next) =
+                  case fromObjectID oid of
                       Nothing -> const $ Left "bad AIA method"
-                      Just v' -> go DecEnd Nothing next
-                                        . (AuthorityInfoAccess v' s :)
-              go DecEnd Nothing (End Sequence : next@(Start Sequence : _)) =
-                  go DecStart Nothing next
-              go DecEnd Nothing [End Sequence, End Sequence] =
+                      Just v -> go DecEnd next . (AuthorityInfoAccess v s :)
+              go DecEnd (End Sequence : next@(Start Sequence : _)) =
+                  go DecStart next
+              go DecEnd [End Sequence, End Sequence] =
                   Right . ExtAuthorityInfoAccess . reverse
-              go _ _ _ = const $ Left "bad or incompatible AIA sequence"
+              go _ _ = const $ Left "bad or incompatible AIA sequence"
     extDecode _ =
         Left "bad AIA sequence"
 
