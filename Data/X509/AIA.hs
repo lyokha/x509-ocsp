@@ -62,11 +62,15 @@ instance Extension ExtAuthorityInfoAccess where
     extEncode (ExtAuthorityInfoAccess aia) =
         Start Sequence
         : concatMap (\AuthorityInfoAccess {..} ->
-                        [ Start Sequence
-                        , OID $ getObjectID aiaMethod
-                        , Other Context 6 aiaLocation
-                        , End Sequence
-                        ]
+                        case aiaMethod of
+                            OCSP ->
+                                [ Start Sequence
+                                , OID $ getObjectID aiaMethod
+                                , Other Context 6 aiaLocation
+                                , End Sequence
+                                ]
+                            CAIssuers ->
+                                error "encoding caIssuers is not implemented"
                     ) aia
         ++ [End Sequence]
     extDecode [Start Sequence, End Sequence] =
@@ -77,7 +81,7 @@ instance Extension ExtAuthorityInfoAccess where
                   go DecMethod next
               go DecMethod (OID oid : next) =
                   go (DecLocation oid) next
-              go (DecLocation oid) (Other Context 6 s : next) =
+              go (DecLocation oid) (Other Context _ s : next) =
                   case fromObjectID oid of
                       Nothing -> const $ Left "bad AIA method"
                       Just v -> go DecEnd next . (AuthorityInfoAccess v s :)
@@ -85,7 +89,7 @@ instance Extension ExtAuthorityInfoAccess where
                   go DecStart next
               go DecEnd [End Sequence, End Sequence] =
                   Right . ExtAuthorityInfoAccess . reverse
-              go _ _ = const $ Left "bad or incompatible AIA sequence"
+              go _ _ = const $ Left "bad or unsupported AIA sequence"
     extDecode _ =
         Left "bad AIA sequence"
 
