@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, ViewPatterns, PatternSynonyms #-}
+{-# LANGUAGE PatternSynonyms, ViewPatterns, LambdaCase #-}
 
 -----------------------------------------------------------------------------
 -- |

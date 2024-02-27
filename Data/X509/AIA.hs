@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, PatternSynonyms #-}
+{-# LANGUAGE PatternSynonyms, ViewPatterns, RecordWildCards #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -92,17 +92,11 @@ instance Extension ExtAuthorityInfoAccess where
                   go DecMethod next
               go DecMethod (OID oid : next) =
                   go (DecLocation oid) next
-              go (DecLocation oid) cur =
-                  case fromObjectID oid of
-                      Just v ->
-                          case cur of
-                              Other Context _ s : next ->
-                                  go DecEnd next . (AuthorityInfoAccess v s :)
-                              _ ->
-                                  go DecEnd $
-                                      End Sequence : skipCurrentContainer cur
-                      Nothing -> const $ Left "bad AIA method"
-                  where skipCurrentContainer = snd . getConstructedEnd 0
+              go (DecLocation (fromObjectID -> Just v)) cur
+                  | Other Context _ s : next <- cur =
+                      go DecEnd next . (AuthorityInfoAccess v s :)
+                  | otherwise =
+                      go DecEnd $ End Sequence : snd (getConstructedEnd 0 cur)
               go DecEnd (End Sequence : next@(Start Sequence : _)) =
                   go DecStart next
               go DecEnd [End Sequence, End Sequence] =
