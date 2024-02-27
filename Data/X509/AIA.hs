@@ -15,13 +15,14 @@
 -- This module complies with /rfc5280/.
 -----------------------------------------------------------------------------
 
-module Data.X509.AIA (ExtAuthorityInfoAccess (..)
-                     ,AuthorityInfoAccess (..)
+module Data.X509.AIA (AuthorityInfoAccess (..)
                      ,AIAMethod (..)
+                     ,ExtAuthorityInfoAccess (..)
                      ) where
 
 import Data.X509
 import Data.ASN1.Types
+import Data.ASN1.Stream
 import Data.ByteString (ByteString)
 
 pattern OidAIA :: [Integer]
@@ -33,11 +34,10 @@ pattern OidOCSP = [1, 3, 6, 1, 5, 5, 7, 48, 1]
 pattern OidCAIssuers :: [Integer]
 pattern OidCAIssuers = [1, 3, 6, 1, 5, 5, 7, 48, 2]
 
--- | Authority Info Access extension.
-newtype ExtAuthorityInfoAccess = ExtAuthorityInfoAccess [AuthorityInfoAccess]
-    deriving (Show, Eq)
-
 -- | Authority Info Access description.
+--
+-- The fields correspond to /accessMethod/ and /accessLocation/ as defined in
+-- /rfc5280/.
 data AuthorityInfoAccess = AuthorityInfoAccess { aiaMethod :: AIAMethod
                                                , aiaLocation :: ByteString
                                                } deriving (Show, Eq)
@@ -53,6 +53,17 @@ instance OIDNameable AIAMethod where
     fromObjectID OidOCSP = Just OCSP
     fromObjectID OidCAIssuers = Just CAIssuers
     fromObjectID _ = Nothing
+
+-- | Authority Info Access extension.
+--
+-- Notable limitations of the 'Extension' instance:
+--
+-- - encoding of access method /CA Issuers/ is not implemented, trying to
+--   encode this will throw an error,
+-- - data with a non-string-like access location (e.g. /directoryName/) get
+--   skipped while decoding.
+newtype ExtAuthorityInfoAccess = ExtAuthorityInfoAccess [AuthorityInfoAccess]
+    deriving (Show, Eq)
 
 data DecState = DecStart | DecMethod | DecLocation OID | DecEnd
 
@@ -70,7 +81,7 @@ instance Extension ExtAuthorityInfoAccess where
                                 , End Sequence
                                 ]
                             CAIssuers ->
-                                error "encoding caIssuers is not implemented"
+                                error "encoding CA Issuers is not implemented"
                     ) aia
         ++ [End Sequence]
     extDecode [Start Sequence, End Sequence] =
@@ -81,15 +92,23 @@ instance Extension ExtAuthorityInfoAccess where
                   go DecMethod next
               go DecMethod (OID oid : next) =
                   go (DecLocation oid) next
-              go (DecLocation oid) (Other Context _ s : next) =
+              go (DecLocation oid) cur =
                   case fromObjectID oid of
+                      Just v ->
+                          case cur of
+                              Other Context _ s : next ->
+                                  go DecEnd next . (AuthorityInfoAccess v s :)
+                              _ ->
+                                  go DecEnd $
+                                      End Sequence : skipCurrentContainer cur
                       Nothing -> const $ Left "bad AIA method"
-                      Just v -> go DecEnd next . (AuthorityInfoAccess v s :)
+                  where skipCurrentContainer = snd . getConstructedEnd 0
               go DecEnd (End Sequence : next@(Start Sequence : _)) =
                   go DecStart next
               go DecEnd [End Sequence, End Sequence] =
                   Right . ExtAuthorityInfoAccess . reverse
-              go _ _ = const $ Left "bad or unsupported AIA sequence"
+              go _ _ =
+                  const $ Left "bad AIA sequence"
     extDecode _ =
         Left "bad AIA sequence"
 
