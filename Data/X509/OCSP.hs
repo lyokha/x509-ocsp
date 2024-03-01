@@ -177,7 +177,7 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
     [ Start Sequence
       , Enumerated (toEnum . fromIntegral -> v)
       , End Sequence
-      ] -> return $ Just $ OCSPResponse v Nothing
+      ] -> Right $ Just $ OCSPResponse v Nothing
     [ Start Sequence
       , Enumerated (toEnum . fromIntegral -> v)
       , Start (Container Context 0)
@@ -189,18 +189,18 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
       , End Sequence
       ] -> do
           pl <- decodeASN1 DER $ L.fromStrict resp'
-          return $
+          Right $
               case pl of
                   Start Sequence
                     : Start Sequence
                     : Start (Container Context ctx)
-                    : c1 | ctx `elem` [0..2] ->
+                    : c1 | ctx `elem` [0..2] -> do
                         let skipVersion =
                                 if ctx == 0
                                     then drop 1 . skipCurrentContainer
                                     else id
-                        in Just $ getCurrentContainerContents $
-                               drop 2 $ skipCurrentContainer $ skipVersion c1
+                        Just $ getCurrentContainerContents $
+                            drop 2 $ skipCurrentContainer $ skipVersion c1
                   _ -> Nothing
               >>= \case
                       Start Sequence
@@ -225,17 +225,17 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                                    tu@(ASN1Time TimeGeneralized _ _)
                                      : c4 -> Just (n, tu, c4)
                                    _ -> Nothing
-              >>= \(st, tu, tc2) ->
+              >>= \(st, tu, tc2) -> do
                   let nu = case tc2 of
                                Start (Container Context 0)
                                  : t@(ASN1Time TimeGeneralized _ _)
                                  : End (Container Context 0)
                                  : _ -> Just t
                                _ -> Nothing
-                  in Just $ OCSPResponse v $
-                         Just $ OCSPResponsePayload
-                             (OCSPResponseCertData st tu nu) pl
-    _ -> return Nothing
+                  Just $ OCSPResponse v $
+                      Just $ OCSPResponsePayload
+                          (OCSPResponseCertData st tu nu) pl
+    _ -> Right Nothing
     where getCurrentContainerContents = fst . getConstructedEnd 0
           skipCurrentContainer = snd . getConstructedEnd 0
 
