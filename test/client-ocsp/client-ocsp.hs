@@ -4,6 +4,7 @@ module Main where
 
 import Data.X509
 import Data.X509.Validation
+import Data.X509.CertificateStore
 import Data.X509.AIA
 import Data.X509.OCSP
 import Data.Default.Class
@@ -71,8 +72,15 @@ validateWithOCSPReq man store cache sid chain = do
                                  _ -> failure "OCSP: bad response"
                          _ -> return $ failure
                                 "OCSP: no OCSP data in server certificate"
-                 _ -> return $ failure
-                        "OCSP: unexpected size of certificate chain"
+                 CertificateChain [signedCertS] -> do
+                     let certS = getCertificate signedCertS
+                     case findCertificate (certIssuerDN certS) store of
+                         Just cert -> validateWithOCSPReq man store cache sid $
+                            CertificateChain [signedCertS, cert]
+                         _ -> return $
+                                failure "OCSP: cannot find trusted certificate"
+                 CertificateChain [] -> return $
+                     failure "OCSP: empty certificate chain"
         else return verr
     where headers = [("Content-Type", "application/ocsp-request")]
           success = []
