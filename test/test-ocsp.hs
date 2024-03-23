@@ -31,12 +31,12 @@ testAIA cert = TestCase $ extensionGet (certExtensions cert) @?= expected
                   ]
  
 testOCSPRequestASN1 :: Certificate -> Certificate -> [ASN1] -> Test
-testOCSPRequestASN1 issuerCert cert = TestCase . (buildRequest @?=)
-    where buildRequest = fst $ encodeOCSPRequestASN1 issuerCert cert
+testOCSPRequestASN1 cert issuerCert = TestCase . (buildRequest @?=)
+    where buildRequest = fst $ encodeOCSPRequestASN1 cert issuerCert
  
 testOCSPRequest :: Certificate -> Certificate -> ByteString -> Test
-testOCSPRequest issuerCert cert = TestCase . (buildRequest @?=) . L.fromStrict
-    where buildRequest = fst $ encodeOCSPRequest issuerCert cert
+testOCSPRequest cert issuerCert = TestCase . (buildRequest @?=) . L.fromStrict
+    where buildRequest = fst $ encodeOCSPRequest cert issuerCert
  
 testOCSPResponse :: CertId -> ByteString -> Test
 testOCSPResponse certId resp =
@@ -49,9 +49,9 @@ testOCSPResponse certId resp =
 main :: IO ()
 main = do
     certS <- toCertificate <$> B.readFile "test/data/certs/server/server.crt"
-    certR <- toCertificate <$> B.readFile "test/data/certs/root/rootCA.crt"
+    certI <- toCertificate <$> B.readFile "test/data/certs/root/rootCA.crt"
 
-    let certId = snd $ encodeOCSPRequestASN1 certR certS
+    let certId = snd $ encodeOCSPRequestASN1 certS certI
 
     reqDer <- B.readFile "test/data/req.der"
     let req = either (error . show) id $ decodeASN1 DER $ L.fromStrict reqDer
@@ -60,8 +60,8 @@ main = do
 
     runTestTTAndExit $ TestList
         [TestLabel "testAIA"             $ testAIA certS
-        ,TestLabel "testOCSPRequestASN1" $ testOCSPRequestASN1 certR certS req
-        ,TestLabel "testOCSPRequest"     $ testOCSPRequest certR certS reqDer
+        ,TestLabel "testOCSPRequestASN1" $ testOCSPRequestASN1 certS certI req
+        ,TestLabel "testOCSPRequest"     $ testOCSPRequest certS certI reqDer
         ,TestLabel "testOCSPResponse"    $ testOCSPResponse certId respDer
         ]
 

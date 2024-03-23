@@ -33,19 +33,17 @@ mkManager man = do
 
 -- Note: (mis)using CacheSaysNo reason on OCSP failures.
 validateWithOCSPReq :: Manager -> OnServerCertificate
-validateWithOCSPReq man store cache sid chain =
-    validateDefault store cache sid chain >>= flip go chain
-    where go [] (CertificateChain ( (getCertificate -> certS)
-                                  : (getCertificate -> certR)
-                                  : _
-                                  )
-                ) =
+validateWithOCSPReq man store cache sid chain@(CertificateChain certs) =
+    validateDefault store cache sid chain >>= flip go certs
+    where go [] ((getCertificate -> certS) : (getCertificate -> certI) : _) =
               case extensionGet $ certExtensions certS of
                   Just (ExtAuthorityInfoAccess
-                                 (AuthorityInfoAccess OCSP url : _)
+                           (dropWhile ((OCSP /=) . aiaMethod) ->
+                               AuthorityInfoAccess OCSP url : _
+                           )
                        ) -> do
                       req <- parseRequest $ C8.unpack url
-                      let (body, certId) = encodeOCSPRequest certR certS
+                      let (body, certId) = encodeOCSPRequest certS certI
                           headers = [ ( "Content-Type"
                                       , "application/ocsp-request"
                                       )
@@ -71,14 +69,15 @@ validateWithOCSPReq man store cache sid chain =
                           _ -> failure "OCSP: bad response"
                   _ -> return $
                          failure "OCSP: no OCSP data in server certificate"
-          go [] (CertificateChain [signedCertS]) = do
+          go [] [signedCertS] = do
               let certS = getCertificate signedCertS
-              case findCertificate (certIssuerDN certS) store of
-                  Just cert -> go [] $ CertificateChain [signedCertS, cert]
-                  _ -> return $ failure "OCSP: cannot find trusted certificate"
-          go [] (CertificateChain []) =
+              maybe (return $ failure "OCSP: cannot find trusted certificate")
+                  (go [] . (signedCertS :) . pure) $
+                      findCertificate (certIssuerDN certS) store
+          go [] [] =
               return $ failure "OCSP: empty certificate chain"
-          go verr _ = return verr
+          go verr _ =
+              return verr
           success = []
           failure = pure . CacheSaysNo
 

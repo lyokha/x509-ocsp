@@ -74,7 +74,7 @@ data CertId = CertId { certIdIssuerNameHash :: ByteString
                      , certIdIssuerKeyHash :: ByteString
                        -- ^ Value of /issuerKeyHash/ as defined in /rfc6960/
                      , certIdSerialNumber :: Integer
-                       -- ^ Serial number of checked certificate
+                       -- ^ Certificate serial number
                      } deriving (Show, Eq)
 
 -- | Build and encode OCSP request in ASN1 format.
@@ -82,10 +82,10 @@ data CertId = CertId { certIdIssuerNameHash :: ByteString
 -- The returned value contains the encoded request and an object of type
 -- 'CertId' with hashes calculated by /SHA1/ algorithm.
 encodeOCSPRequestASN1
-    :: Certificate              -- ^ Issuer certificate
-    -> Certificate              -- ^ Checked certificate
+    :: Certificate              -- ^ Certificate
+    -> Certificate              -- ^ Issuer certificate
     -> ([ASN1], CertId)
-encodeOCSPRequestASN1 issuerCert cert =
+encodeOCSPRequestASN1 cert issuerCert =
     let h1 = issuerDNHash cert
         h2 = pubKeyHash issuerCert
         sn = certSerial cert
@@ -115,8 +115,8 @@ encodeOCSPRequestASN1 issuerCert cert =
 -- The returned value contains the encoded request and an object of type
 -- 'CertId' with hashes calculated by /SHA1/ algorithm.
 encodeOCSPRequest
-    :: Certificate              -- ^ Issuer certificate
-    -> Certificate              -- ^ Checked certificate
+    :: Certificate              -- ^ Certificate
+    -> Certificate              -- ^ Issuer certificate
     -> (L.ByteString, CertId)
 encodeOCSPRequest = (first (encodeASN1 DER) .) . encodeOCSPRequestASN1
 
@@ -138,25 +138,25 @@ data OCSPResponseStatus = OCSPRespSuccessful
                         | OCSPRespUnauthorized
                         deriving (Show, Eq, Bounded, Enum)
 
--- | OCSP response payload data.
+-- | Payload data of OCSP response.
 data OCSPResponsePayload =
     OCSPResponsePayload { ocspRespCertData :: OCSPResponseCertData
-                          -- ^ Checked certificate data
+                          -- ^ Selected certificate data
                         , ocspRespData :: [ASN1]
                           -- ^ Whole response payload
                         } deriving (Show, Eq)
 
--- | OCSP response certificate data.
+-- | Selected certificate data of OCSP response.
 data OCSPResponseCertData =
     OCSPResponseCertData { ocspRespCertStatus :: OCSPResponseCertStatus
-                           -- ^ Status of checked certificate
+                           -- ^ Certificate status
                          , ocspRespCertThisUpdate :: ASN1
                            -- ^ Value of /thisUpdate/ as defined in /rfc6960/
                          , ocspRespCertNextUpdate :: Maybe ASN1
                            -- ^ Value of /nextUpdate/ as defined in /rfc6960/
                          } deriving (Show, Eq)
 
--- | Status of the checked certificate as defined in /rfc6960/.
+-- | Certificate status of OCSP response as defined in /rfc6960/.
 data OCSPResponseCertStatus = OCSPRespCertGood
                             | OCSPRespCertRevoked
                             | OCSPRespCertUnknown
@@ -164,11 +164,12 @@ data OCSPResponseCertStatus = OCSPRespCertGood
 
 -- | Decode OCSP response.
 --
--- Value of the /certificate id/ is expected to be equal to what was returned
--- by 'encodeOCSPRequest': it is used to check the correctness of the response.
+-- The value of the /certificate id/ is expected to be equal to what was
+-- returned by 'encodeOCSPRequest' as it is used to check the correctness of
+-- the response.
 --
--- /Left/ value gets returned on parse errors detected by 'decodeASN1'.
--- /Right/ value with /Nothing/ gets returned on unexpected ASN1 contents.
+-- The /Left/ value gets returned on parse errors detected by 'decodeASN1'.
+-- The /Right/ value with /Nothing/ gets returned on unexpected ASN.1 contents.
 decodeOCSPResponse
     :: CertId                   -- ^ Certificate Id
     -> L.ByteString             -- ^ OCSP response

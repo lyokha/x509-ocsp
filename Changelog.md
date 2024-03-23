@@ -1,3 +1,9 @@
+### 0.2.0.0
+
+- **Breaking changes**: flip the order of arguments in *encodeOCSPRequestASN1*
+  and *encodeOCSPRequest* (the new order is *cert -&gt; issuerCert*).
+- Various improvements in the *client-ocsp* example.
+
 ### 0.1.1.0
 
 - Improvements in module *Data.X509.AIA*.
