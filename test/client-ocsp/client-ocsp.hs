@@ -39,7 +39,7 @@ validateWithOCSPReq man store cache sid chain@(CertificateChain certs) =
               case extensionGet $ certExtensions certS of
                   Just (ExtAuthorityInfoAccess
                            (dropWhile ((OCSP /=) . aiaMethod) ->
-                               AuthorityInfoAccess OCSP url : _
+                               (aiaLocation -> url) : _
                            )
                        ) -> do
                       req <- parseRequest $ C8.unpack url
@@ -57,7 +57,7 @@ validateWithOCSPReq man store cache sid chain@(CertificateChain certs) =
                           Right (Just (OCSPResponse OCSPRespSuccessful
                                           (Just
                                               (OCSPResponsePayload
-                                                  (OCSPResponseCertData s _ _) _
+                                                  (ocspRespCertStatus -> s) _
                                               )
                                           )
                                       )
