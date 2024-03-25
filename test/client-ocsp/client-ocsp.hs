@@ -33,9 +33,10 @@ mkManager man = do
 
 -- Note: (mis)using CacheSaysNo reason on OCSP failures.
 validateWithOCSPReq :: Manager -> OnServerCertificate
-validateWithOCSPReq man store cache sid chain@(CertificateChain certs) =
+validateWithOCSPReq man store cache sid
+        chain@(CertificateChain (map getCertificate -> certs)) =
     validateDefault store cache sid chain >>= flip go certs
-    where go [] ((getCertificate -> certS) : (getCertificate -> certI) : _) =
+    where go [] (certS : certI : _) =
               case extensionGet $ certExtensions certS of
                   Just (ExtAuthorityInfoAccess
                            (dropWhile ((OCSP /=) . aiaMethod) ->
@@ -69,10 +70,9 @@ validateWithOCSPReq man store cache sid chain@(CertificateChain certs) =
                           _ -> failure "OCSP: bad response"
                   _ -> return $
                          failure "OCSP: no OCSP data in server certificate"
-          go [] [signedCertS] = do
-              let certS = getCertificate signedCertS
+          go [] [certS] =
               maybe (return $ failure "OCSP: cannot find trusted certificate")
-                  (go [] . (signedCertS :) . pure) $
+                  (go [] . (certS :) . pure . getCertificate) $
                       findCertificate (certIssuerDN certS) store
           go [] [] =
               return $ failure "OCSP: empty certificate chain"
