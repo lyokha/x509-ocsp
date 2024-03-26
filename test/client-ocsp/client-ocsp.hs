@@ -64,9 +64,9 @@ validateWithOCSPReq man store cache sid
                                       )
                                 ) | s == OCSPRespCertGood -> success
                                   | otherwise -> failure $
-                                      "OCSP: bad certificate status " ++ show s
+                                      "OCSP: bad certificate status " <> show s
                           Right (Just (OCSPResponse s Nothing)) ->
-                              failure $ "OCSP: bad response status " ++ show s
+                              failure $ "OCSP: bad response status " <> show s
                           _ -> failure "OCSP: bad response"
                   _ -> return $
                          failure "OCSP: no OCSP data in server certificate"
@@ -74,8 +74,7 @@ validateWithOCSPReq man store cache sid
               maybe (return $ failure "OCSP: cannot find trusted certificate")
                   (go [] . (certS :) . pure . getCertificate) $
                       findCertificate (certIssuerDN certS) store
-          go [] [] =
-              return $ failure "OCSP: empty certificate chain"
+          -- go [] [] is redundant as EmptyChain gets caught in validateDefault
           go verr _ =
               return verr
           success = []
