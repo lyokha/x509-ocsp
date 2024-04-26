@@ -77,10 +77,10 @@ data CertId = CertId { certIdIssuerNameHash :: ByteString
                        -- ^ Certificate serial number
                      } deriving (Show, Eq)
 
--- | Build and encode OCSP request in ASN1 format.
+-- | Build and encode OCSP request in ASN.1 format.
 --
 -- The returned value contains the encoded request and an object of type
--- 'CertId' with hashes calculated by /SHA1/ algorithm.
+-- 'CertId' with hashes calculated by the SHA1 algorithm.
 encodeOCSPRequestASN1
     :: Certificate              -- ^ Certificate
     -> Certificate              -- ^ Issuer certificate
@@ -110,10 +110,10 @@ encodeOCSPRequestASN1 cert issuerCert =
        , CertId h1 h2 sn
        )
 
--- | Build and encode OCSP request in ASN1 DER format.
+-- | Build and encode OCSP request in ASN.1\/DER format.
 --
 -- The returned value contains the encoded request and an object of type
--- 'CertId' with hashes calculated by /SHA1/ algorithm.
+-- 'CertId' with hashes calculated by the SHA1 algorithm.
 encodeOCSPRequest
     :: Certificate              -- ^ Certificate
     -> Certificate              -- ^ Issuer certificate
