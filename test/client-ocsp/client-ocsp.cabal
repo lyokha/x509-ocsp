@@ -20,6 +20,7 @@ executable client-ocsp
                       , crypton-x509-store
                       , crypton-x509-system
                       , crypton-x509-validation
+                      , asn1-types
                       , tls
                       , data-default-class
                       , x509-ocsp

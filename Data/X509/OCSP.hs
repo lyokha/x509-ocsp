@@ -15,21 +15,29 @@
 -- This module complies with /rfc6960/.
 -----------------------------------------------------------------------------
 
-module Data.X509.OCSP (CertId (..)
+module Data.X509.OCSP (
+    -- * Shared data
+                       CertId (..)
+    -- * OCSP request
                       ,encodeOCSPRequestASN1
                       ,encodeOCSPRequest
+    -- * OCSP response
                       ,OCSPResponse (..)
                       ,OCSPResponseStatus (..)
                       ,OCSPResponsePayload (..)
                       ,OCSPResponseCertData (..)
                       ,OCSPResponseCertStatus (..)
                       ,decodeOCSPResponse
+    -- * OCSP response verification
+                      ,OCSPResponseVerificationData (..)
+                      ,getOCSPResponseVerificationData
                       ) where
 
 import Data.X509
 import Data.ASN1.Types
 import Data.ASN1.Encoding
 import Data.ASN1.BinaryEncoding
+import Data.ASN1.BitArray
 import Data.ASN1.Stream
 import Data.ASN1.Error
 import Data.ByteString (ByteString)
@@ -62,7 +70,7 @@ pubKeyHash cert = hashlazy $ L.drop (succ $ derLWidth $ L.head pk) pk
                      : OID _
                      : _
                      : End Sequence
-                     : v@(BitString _)
+                     : v@BitString {}
                      : _ -> L.drop 1 $ encodeASN1 DER $ pure v
                    _ -> error "bad pubkey sequence"
 
@@ -142,7 +150,7 @@ data OCSPResponseStatus = OCSPRespSuccessful
 data OCSPResponsePayload =
     OCSPResponsePayload { ocspRespCertData :: OCSPResponseCertData
                           -- ^ Selected certificate data
-                        , ocspRespData :: [ASN1]
+                        , ocspRespASN1 :: [ASN1]
                           -- ^ Whole response payload
                         } deriving (Show, Eq)
 
@@ -189,7 +197,7 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
       , End (Container Context 0)
       , End Sequence
       ] -> do
-          pl <- decodeASN1 DER $ L.fromStrict resp'
+          pl <- decodeASN1' DER resp'
           Right $
               case pl of
                   Start Sequence
@@ -237,6 +245,78 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                       Just $ OCSPResponsePayload
                           (OCSPResponseCertData st tu nu) pl
     _ -> Right Nothing
-    where getCurrentContainerContents = fst . getConstructedEnd 0
-          skipCurrentContainer = snd . getConstructedEnd 0
+
+-- | Verification data from OCSP response payload.
+--
+-- The data can be used to verify the signature of the OCSP response with
+-- 'Data.X509.Validation.verifySignature'. The response is signed with
+-- signature /ocspRespSignature/. Binary data /ocspRespDer/ and algorthm
+-- /ocspRespSignatureAlg/ are what was used to sign the response. The
+-- verification process may require the public key of the issuer certificate
+-- of the certificate being checked if it's not attached in /ocspRespCerts/.
+--
+-- See details of signing and verification of OCSP responses in /rfc6960/.
+--
+-- Below is a simple implementation of the OCSP response signature verification.
+--
+-- @
+-- {-# LANGUAGE RecordWildCards #-}
+--
+-- -- ...
+--
+-- /verifySignature\'/ :: 'OCSPResponse' -> 'Certificate' -> 'Data.X509.Validation.SignatureVerification'
+-- /verifySignature\'/ resp 'Certificate' {..}
+--     | Just __/OCSPResponseVerificationData/__ {..} <-
+--         'getOCSPResponseVerificationData' resp
+--     , Right (alg, _) <- 'fromASN1' __/ocspRespSignatureAlg/__ =
+--         verifySignature alg 'certPubKey' __/ocspRespDer/__ __/ocspRespSignature/__
+--     | otherwise = 'Data.X509.Validation.SignatureFailed' 'Data.X509.Validation.SignatureInvalid'
+-- @
+--
+-- Note that the issuer certificate gets passed to /verifySignature\'/ rather
+-- than looked up in /ocspRespCerts/. The OCSP Signature Authority Delegation
+-- is not checked in the function.
+data OCSPResponseVerificationData =
+    OCSPResponseVerificationData { ocspRespDer :: ByteString
+                                   -- ^ Response data (DER-encoded)
+                                 , ocspRespSignatureAlg :: [ASN1]
+                                   -- ^ Signature algorithm
+                                 , ocspRespSignature :: ByteString
+                                   -- ^ Signature
+                                 , ocspRespCerts :: Maybe [ASN1]
+                                   -- ^ Certificates
+                                 } deriving (Show, Eq)
+
+-- | Get verification data from OCSP response payload.
+-- 
+-- The function returns /Nothing/ on unexpected ASN.1 contents.
+getOCSPResponseVerificationData :: OCSPResponse ->
+    Maybe OCSPResponseVerificationData
+getOCSPResponseVerificationData resp
+    | Just resp' <- ocspRespPayload resp
+    , (Start Sequence : c01@(Start Sequence) : c1) <- ocspRespASN1 resp' = do
+        let (resp'', next) = getConstructedEnd 0 c1
+            der = encodeASN1' DER $ c01 : resp'' ++ [End Sequence]
+        case next of
+            c02@(Start Sequence) : c2 -> do
+                let ((c02 :) . (++ [End Sequence]) -> alg, next') =
+                        getConstructedEnd 0 c2
+                case next' of
+                    BitString (BitArray _ sig) : c3
+                        | c3 == [End Sequence] -> Just $
+                            OCSPResponseVerificationData der alg sig
+                                Nothing
+                        | certs@(Start (Container Context 0) : _) <-
+                            getCurrentContainerContents c3 -> Just $
+                                OCSPResponseVerificationData der alg sig $
+                                    Just certs
+                    _ -> Nothing
+            _ -> Nothing
+getOCSPResponseVerificationData _ = Nothing
+
+getCurrentContainerContents :: [ASN1] -> [ASN1]
+getCurrentContainerContents = fst . getConstructedEnd 0
+
+skipCurrentContainer :: [ASN1] -> [ASN1]
+skipCurrentContainer = snd . getConstructedEnd 0
 

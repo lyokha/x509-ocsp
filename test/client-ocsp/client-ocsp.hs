@@ -1,4 +1,4 @@
-{-# LANGUAGE ViewPatterns, OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns, OverloadedStrings, RecordWildCards #-}
 
 module Main where
 
@@ -10,6 +10,7 @@ import Data.X509.OCSP
 import Data.Default.Class
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as C8
+import Data.ASN1.Types
 import System.X509
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
@@ -55,14 +56,18 @@ validateWithOCSPReq man store cache sid
                                      }
                       resp <- responseBody <$> httpLbs req' man
                       return $ case decodeOCSPResponse certId resp of
-                          Right (Just (OCSPResponse OCSPRespSuccessful
-                                          (Just
-                                              (OCSPResponsePayload
-                                                  (ocspRespCertStatus -> s) _
-                                              )
-                                          )
-                                      )
-                                ) | s == OCSPRespCertGood -> success
+                          Right (Just r@(OCSPResponse OCSPRespSuccessful
+                                             (Just
+                                                 (OCSPResponsePayload
+                                                     (ocspRespCertStatus -> s) _
+                                                 )
+                                             )
+                                         )
+                                ) | s == OCSPRespCertGood ->
+                                    case verifySignature' r certI of
+                                        SignaturePass -> success
+                                        SignatureFailed e -> failure $
+                                            "OCSP: bad signature: " <> show e
                                   | otherwise -> failure $
                                       "OCSP: bad certificate status " <> show s
                           Right (Just (OCSPResponse s Nothing)) ->
@@ -79,6 +84,15 @@ validateWithOCSPReq man store cache sid
               return verr
           success = []
           failure = pure . CacheSaysNo
+
+-- Note: OCSP Signature Authority Delegation is not supported here
+verifySignature' :: OCSPResponse -> Certificate -> SignatureVerification
+verifySignature' resp Certificate {..}
+    | Just OCSPResponseVerificationData {..} <-
+        getOCSPResponseVerificationData resp
+    , Right (alg, _) <- fromASN1 ocspRespSignatureAlg =
+        verifySignature alg certPubKey ocspRespDer ocspRespSignature
+    | otherwise = SignatureFailed SignatureInvalid
 
 main :: IO ()
 main = do

@@ -1,3 +1,8 @@
+### 0.3.0.0
+
+- Add function *getOCSPResponseVerificationData* to help verify the signature of
+  the OCSP response. See how it can be used in the *client-ocsp* example.
+
 ### 0.2.0.0
 
 - **Breaking changes**: flip the order of arguments in *encodeOCSPRequestASN1*
