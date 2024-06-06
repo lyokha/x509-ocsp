@@ -52,9 +52,9 @@ verifyOCSPResponse issuerCert resp =
 verifySignature' :: OCSPResponse -> Certificate -> SignatureVerification
 verifySignature' resp Certificate {..}
     | Just OCSPResponseVerificationData {..} <-
-        getOCSPResponseVerificationData resp
-    , Right (alg, _) <- fromASN1 ocspRespSignatureAlg =
-        verifySignature alg certPubKey ocspRespDer ocspRespSignature
+        getOCSPResponseVerificationData resp =
+            verifySignature ocspRespSignatureAlg certPubKey ocspRespDer
+                ocspRespSignature
     | otherwise = SignatureFailed SignatureInvalid
 
 main :: IO ()

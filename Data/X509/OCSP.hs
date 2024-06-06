@@ -253,7 +253,7 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
 -- signature /ocspRespSignature/. Binary data /ocspRespDer/ and algorthm
 -- /ocspRespSignatureAlg/ are what was used to sign the response. The
 -- verification process may require the public key of the issuer certificate
--- of the certificate being checked if it's not attached in /ocspRespCerts/.
+-- if it's not attached in /ocspRespCerts/.
 --
 -- See details of signing and verification of OCSP responses in /rfc6960/.
 --
@@ -264,12 +264,12 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
 --
 -- -- ...
 --
--- /verifySignature\'/ :: 'OCSPResponse' -> 'Certificate' -> 'Data.X509.Validation.SignatureVerification'
--- /verifySignature\'/ resp 'Certificate' {..}
+-- verifySignature\' :: 'OCSPResponse' -> 'Certificate' -> 'Data.X509.Validation.SignatureVerification'
+-- verifySignature\' resp 'Certificate' {..}
 --     | Just __/OCSPResponseVerificationData/__ {..} <-
---         'getOCSPResponseVerificationData' resp
---     , Right (alg, _) <- 'fromASN1' __/ocspRespSignatureAlg/__ =
---         verifySignature alg 'certPubKey' __/ocspRespDer/__ __/ocspRespSignature/__
+--         'getOCSPResponseVerificationData' resp =
+--             verifySignature __/ocspRespSignatureAlg/__ 'certPubKey' __/ocspRespDer/__
+--                 __/ocspRespSignature/__
 --     | otherwise = 'Data.X509.Validation.SignatureFailed' 'Data.X509.Validation.SignatureInvalid'
 -- @
 --
@@ -279,39 +279,51 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
 data OCSPResponseVerificationData =
     OCSPResponseVerificationData { ocspRespDer :: ByteString
                                    -- ^ Response data (DER-encoded)
-                                 , ocspRespSignatureAlg :: [ASN1]
+                                 , ocspRespSignatureAlg :: SignatureALG
                                    -- ^ Signature algorithm
                                  , ocspRespSignature :: ByteString
                                    -- ^ Signature
-                                 , ocspRespCerts :: Maybe [ASN1]
+                                 , ocspRespCerts :: [Certificate]
                                    -- ^ Certificates
                                  } deriving (Show, Eq)
 
 -- | Get verification data from OCSP response payload.
--- 
+--
 -- The function returns /Nothing/ on unexpected ASN.1 contents.
 getOCSPResponseVerificationData :: OCSPResponse ->
     Maybe OCSPResponseVerificationData
 getOCSPResponseVerificationData resp
     | Just resp' <- ocspRespPayload resp
-    , (Start Sequence : c01@(Start Sequence) : c1) <- ocspRespASN1 resp' = do
-        let (resp'', next) = getConstructedEnd 0 c1
-            der = encodeASN1' DER $ c01 : resp'' ++ [End Sequence]
+    , Start Sequence : Start Sequence : c1 <- ocspRespASN1 resp' = do
+        let (wrapInSequence -> resp'', next) = getConstructedEnd 0 c1
+            der = encodeASN1' DER resp''
         case next of
-            c02@(Start Sequence) : c2 -> do
-                let ((c02 :) . (++ [End Sequence]) -> alg, next') =
-                        getConstructedEnd 0 c2
+            Start Sequence : c2 -> do
+                let (wrapInSequence -> alg, next') = getConstructedEnd 0 c2
+                (alg', _) <- either (const Nothing) Just $ fromASN1 alg
                 case next' of
                     BitString (BitArray _ sig) : c3
-                        | c3 == [End Sequence] -> Just $
-                            OCSPResponseVerificationData der alg sig
-                                Nothing
-                        | certs@(Start (Container Context 0) : _) <-
-                            getCurrentContainerContents c3 -> Just $
-                                OCSPResponseVerificationData der alg sig $
-                                    Just certs
+                        | c3 == [End Sequence] ->
+                            Just $ OCSPResponseVerificationData
+                                der alg' sig []
+                        | Start (Container Context 0)
+                            : Start Sequence
+                            : certs <- getCurrentContainerContents c3 -> do
+                                certs' <- reverse <$> collectCerts certs []
+                                Just $ OCSPResponseVerificationData
+                                    der alg' sig certs'
                     _ -> Nothing
             _ -> Nothing
+    where collectCerts (Start Sequence : c1) certs
+              | (Start Sequence : cert, c2) <- getConstructedEnd 0 c1 =
+                  case fromASN1 (getCurrentContainerContents cert) of
+                      Right (cert', _) -> collectCerts c2 $ cert' : certs
+                      _ -> Nothing
+          collectCerts [End Sequence, End (Container Context 0)] certs =
+              Just certs
+          collectCerts _ _ =
+              Nothing
+          wrapInSequence = (Start Sequence :) . (++ [End Sequence])
 getOCSPResponseVerificationData _ = Nothing
 
 getCurrentContainerContents :: [ASN1] -> [ASN1]

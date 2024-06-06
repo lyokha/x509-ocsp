@@ -10,7 +10,6 @@ import Data.X509.OCSP
 import Data.Default.Class
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as C8
-import Data.ASN1.Types
 import System.X509
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
@@ -62,7 +61,7 @@ validateWithOCSPReq man store cache sid
                                                      (ocspRespCertStatus -> s) _
                                                  )
                                              )
-                                         )
+                                        )
                                 ) | s == OCSPRespCertGood ->
                                     case verifySignature' r certI of
                                         SignaturePass -> success
@@ -89,9 +88,9 @@ validateWithOCSPReq man store cache sid
 verifySignature' :: OCSPResponse -> Certificate -> SignatureVerification
 verifySignature' resp Certificate {..}
     | Just OCSPResponseVerificationData {..} <-
-        getOCSPResponseVerificationData resp
-    , Right (alg, _) <- fromASN1 ocspRespSignatureAlg =
-        verifySignature alg certPubKey ocspRespDer ocspRespSignature
+        getOCSPResponseVerificationData resp =
+            verifySignature ocspRespSignatureAlg certPubKey ocspRespDer
+                ocspRespSignature
     | otherwise = SignatureFailed SignatureInvalid
 
 main :: IO ()
