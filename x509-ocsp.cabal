@@ -29,6 +29,9 @@ library
                       , asn1-types
                       , cryptohash-sha1
 
+            -- only needed for haddock to hyperlink entities in code examples:
+                      , crypton-x509-validation
+
   exposed-modules:      Data.X509.AIA
                       , Data.X509.OCSP
 

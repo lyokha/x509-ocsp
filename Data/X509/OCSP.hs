@@ -264,7 +264,7 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
 --
 -- -- ...
 --
--- verifySignature\' :: 'OCSPResponse' -> 'Certificate' -> 'Data.X509.Validation.SignatureVerification'
+-- verifySignature\' :: 'OCSPResponse' -> 'Certificate' -> t'Data.X509.Validation.SignatureVerification'
 -- verifySignature\' resp v'Certificate' {..}
 --     | Just __/OCSPResponseVerificationData/__ {..} <-
 --         'getOCSPResponseVerificationData' resp =
