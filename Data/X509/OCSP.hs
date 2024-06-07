@@ -248,7 +248,7 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
 
 -- | Verification data from OCSP response payload.
 --
--- The data can be used to verify the signature of the OCSP response with
+-- This data can be used to verify the signature of the OCSP response with
 -- 'Data.X509.Validation.verifySignature'. The response is signed with
 -- signature /ocspRespSignature/. Binary data /ocspRespDer/ and algorthm
 -- /ocspRespSignatureAlg/ are what was used to sign the response. The
@@ -265,10 +265,10 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
 -- -- ...
 --
 -- verifySignature\' :: 'OCSPResponse' -> 'Certificate' -> 'Data.X509.Validation.SignatureVerification'
--- verifySignature\' resp 'Certificate' {..}
+-- verifySignature\' resp v'Certificate' {..}
 --     | Just __/OCSPResponseVerificationData/__ {..} <-
 --         'getOCSPResponseVerificationData' resp =
---             verifySignature __/ocspRespSignatureAlg/__ 'certPubKey' __/ocspRespDer/__
+--             'Data.X509.Validation.verifySignature' __/ocspRespSignatureAlg/__ 'certPubKey' __/ocspRespDer/__
 --                 __/ocspRespSignature/__
 --     | otherwise = 'Data.X509.Validation.SignatureFailed' 'Data.X509.Validation.SignatureInvalid'
 -- @
