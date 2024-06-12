@@ -7,10 +7,14 @@ import Data.X509.Validation
 import Data.X509.CertificateStore
 import Data.X509.AIA
 import Data.X509.OCSP
+import Data.ASN1.Types
 import Data.Default.Class
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as C8
 import System.X509
+import Time.System
+import Data.Hourglass
+import Data.Maybe
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Network.Connection
@@ -54,26 +58,46 @@ validateWithOCSPReq man store cache sid
                                      , requestBody = RequestBodyLBS body
                                      }
                       resp <- responseBody <$> httpLbs req' man
-                      return $ case decodeOCSPResponse certId resp of
+                      case decodeOCSPResponse certId resp of
                           Right (Just r@(OCSPResponse OCSPRespSuccessful
                                              (Just
                                                  (OCSPResponsePayload
-                                                     (ocspRespCertStatus -> s) _
+                                                     OCSPResponseCertData {..} _
                                                  )
                                              )
                                         )
-                                ) | s == OCSPRespCertGood ->
-                                    case verifySignature' r certI of
-                                        SignaturePass -> success
-                                        SignatureFailed e -> failure $
-                                            "OCSP: bad signature: " <> show e
-                                  | otherwise -> failure $
-                                      "OCSP: bad certificate status " <> show s
-                          Right (Just (OCSPResponse s Nothing)) ->
+                                ) -> do
+                                    now <- dateCurrent
+                                    return $ foldl1 (<>)
+                                         [ checkCertStatus ocspRespCertStatus
+                                         , checkSignature r certI
+                                         , checkUpdateTime now
+                                               ocspRespCertThisUpdate
+                                               ocspRespCertNextUpdate
+                                         ]
+                          Right (Just (OCSPResponse s Nothing)) -> return $
                               failure $ "OCSP: bad response status " <> show s
-                          _ -> failure "OCSP: bad response"
+                          _ -> return $ failure "OCSP: bad response"
                   _ -> return $
                          failure "OCSP: no OCSP data in server certificate"
+              where checkCertStatus OCSPRespCertGood = success
+                    checkCertStatus s = failure $
+                        "OCSP: bad certificate status " <> show s
+                    checkSignature resp cert =
+                        case verifySignature' resp cert of
+                            SignaturePass -> success
+                            SignatureFailed e -> failure $
+                                "OCSP: bad signature: " <> show e
+                    checkUpdateTime now (ASN1Time TimeGeneralized dttu tuo) nu
+                        | Just (ASN1Time TimeGeneralized dtnu nuo) <- nu
+                        , globalTime tuo dttu <= now
+                        , globalTime nuo dtnu >= now = success
+                        | globalTime tuo dttu <= now = success
+                    checkUpdateTime now tu nu = failure $
+                        "OCSP: bad update times: this update: " <> show tu <> 
+                        ", next update: " <> show nu <> ", now: " <> show now
+                    globalTime = (localTimeToGlobal .)
+                               . localTime . fromMaybe (TimezoneOffset 0)
           go [] [certS] =
               maybe (return $ failure "OCSP: cannot find trusted certificate")
                   (go [] . (certS :) . pure . getCertificate) $
