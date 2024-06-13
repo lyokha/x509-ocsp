@@ -68,7 +68,7 @@ validateWithOCSPReq man store cache sid
                                         )
                                 ) -> do
                                     now <- dateCurrent
-                                    return $ foldl1 (<>)
+                                    return $ checks
                                          [ checkCertStatus ocspRespCertStatus
                                          , checkSignature r certI
                                          , checkUpdateTime now
@@ -110,6 +110,7 @@ validateWithOCSPReq man store cache sid
               return verr
           success = []
           failure = pure . CacheSaysNo
+          checks = foldl1 (<>)
 
 -- Note: OCSP Signature Authority Delegation is not supported here
 verifySignature' :: OCSPResponse -> Certificate -> SignatureVerification
