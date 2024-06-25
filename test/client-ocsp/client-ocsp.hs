@@ -59,18 +59,19 @@ validateWithOCSPReq man store cache sid
                                      }
                       resp <- responseBody <$> httpLbs req' man
                       case decodeOCSPResponse certId resp of
-                          Right (Just r@(OCSPResponse OCSPRespSuccessful
-                                             (Just
-                                                 (OCSPResponsePayload
-                                                     OCSPResponseCertData {..} _
-                                                 )
-                                             )
-                                        )
+                          Right (Just (OCSPResponse OCSPRespSuccessful
+                                           (Just
+                                               (OCSPResponsePayload
+                                                   OCSPResponseCertData {..}
+                                                   resp'
+                                               )
+                                           )
+                                      )
                                 ) -> do
                                     now <- dateCurrent
                                     return $ checks
                                          [ checkCertStatus ocspRespCertStatus
-                                         , checkSignature r certI
+                                         , checkSignature resp' certI
                                          , checkUpdateTime now
                                                ocspRespCertThisUpdate
                                                ocspRespCertNextUpdate
@@ -113,10 +114,10 @@ validateWithOCSPReq man store cache sid
           checks = foldl1 (<>)
 
 -- Note: OCSP Signature Authority Delegation is not supported here
-verifySignature' :: OCSPResponse -> Certificate -> SignatureVerification
+verifySignature' :: [ASN1] -> Certificate -> SignatureVerification
 verifySignature' resp Certificate {..}
     | Just OCSPResponseVerificationData {..} <-
-        getOCSPResponseVerificationData resp =
+        getOCSPResponseVerificationData' resp =
             verifySignature ocspRespSignatureAlg certPubKey ocspRespDer
                 ocspRespSignature
     | otherwise = SignatureFailed SignatureInvalid

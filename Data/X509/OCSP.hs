@@ -31,6 +31,7 @@ module Data.X509.OCSP (
     -- * OCSP response verification
                       ,OCSPResponseVerificationData (..)
                       ,getOCSPResponseVerificationData
+                      ,getOCSPResponseVerificationData'
                       ) where
 
 import Data.X509
@@ -276,6 +277,9 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
 -- Note that the issuer certificate gets passed to /verifySignature\'/ rather
 -- than looked up in /ocspRespCerts/. The OCSP Signature Authority Delegation
 -- is not checked in the function.
+--
+-- To verify update times, check the values of 'ocspRespCertThisUpdate' and
+-- 'ocspRespCertNextUpdate'.
 data OCSPResponseVerificationData =
     OCSPResponseVerificationData { ocspRespDer :: ByteString
                                    -- ^ Response data (DER-encoded)
@@ -287,44 +291,55 @@ data OCSPResponseVerificationData =
                                    -- ^ Certificates
                                  } deriving (Show, Eq)
 
--- | Get verification data from OCSP response payload.
+-- | Get verification data from OCSP response.
 --
 -- The function returns /Nothing/ on unexpected ASN.1 contents.
-getOCSPResponseVerificationData :: OCSPResponse ->
-    Maybe OCSPResponseVerificationData
-getOCSPResponseVerificationData resp
-    | Just resp' <- ocspRespPayload resp
-    , Start Sequence : Start Sequence : c1 <- ocspRespASN1 resp' = do
-        let (wrapInSequence -> resp'', next) = getConstructedEnd 0 c1
-            der = encodeASN1' DER resp''
-        case next of
-            Start Sequence : c2 -> do
-                let (wrapInSequence -> alg, next') = getConstructedEnd 0 c2
-                (alg', _) <- either (const Nothing) Just $ fromASN1 alg
-                case next' of
-                    BitString (BitArray _ sig) : c3
-                        | c3 == [End Sequence] ->
+getOCSPResponseVerificationData
+    :: OCSPResponse             -- ^ OCSP response
+    -> Maybe OCSPResponseVerificationData
+getOCSPResponseVerificationData (ocspRespPayload -> Just resp) =
+    getOCSPResponseVerificationData' $ ocspRespASN1 resp
+getOCSPResponseVerificationData _ = Nothing
+
+-- | Get verification data from OCSP response payload.
+--
+-- This is a variant of 'getOCSPResponseVerificationData' that accepts the
+-- OCSP response payload in ASN.1 format. The function returns /Nothing/ on
+-- unexpected ASN.1 contents.
+getOCSPResponseVerificationData'
+    :: [ASN1]                   -- ^ OCSP response payload
+    -> Maybe OCSPResponseVerificationData
+getOCSPResponseVerificationData' (Start Sequence : Start Sequence : c1) = do
+    let (wrapInSequence -> resp'', next) = getConstructedEnd 0 c1
+        der = encodeASN1' DER resp''
+    case next of
+        Start Sequence : c2 -> do
+            let (wrapInSequence -> alg, next') = getConstructedEnd 0 c2
+            (alg', _) <- either (const Nothing) Just $ fromASN1 alg
+            case next' of
+                BitString (BitArray _ sig) : c3
+                    | c3 == [End Sequence] ->
+                        Just $ OCSPResponseVerificationData
+                            der alg' sig []
+                    | Start (Container Context 0)
+                        : Start Sequence
+                        : certs <- getCurrentContainerContents c3 -> do
+                            certs' <- reverse <$> collectCerts certs []
                             Just $ OCSPResponseVerificationData
-                                der alg' sig []
-                        | Start (Container Context 0)
-                            : Start Sequence
-                            : certs <- getCurrentContainerContents c3 -> do
-                                certs' <- reverse <$> collectCerts certs []
-                                Just $ OCSPResponseVerificationData
-                                    der alg' sig certs'
-                    _ -> Nothing
-            _ -> Nothing
-    where collectCerts (Start Sequence : c1) certs
-              | (Start Sequence : cert, c2) <- getConstructedEnd 0 c1 =
+                                der alg' sig certs'
+                _ -> Nothing
+        _ -> Nothing
+    where collectCerts (Start Sequence : c4) certs
+              | (Start Sequence : cert, c5) <- getConstructedEnd 0 c4 =
                   case fromASN1 (getCurrentContainerContents cert) of
-                      Right (cert', _) -> collectCerts c2 $ cert' : certs
+                      Right (cert', _) -> collectCerts c5 $ cert' : certs
                       _ -> Nothing
           collectCerts [End Sequence, End (Container Context 0)] certs =
               Just certs
           collectCerts _ _ =
               Nothing
           wrapInSequence = (Start Sequence :) . (++ [End Sequence])
-getOCSPResponseVerificationData _ = Nothing
+getOCSPResponseVerificationData' _ = Nothing
 
 getCurrentContainerContents :: [ASN1] -> [ASN1]
 getCurrentContainerContents = fst . getConstructedEnd 0

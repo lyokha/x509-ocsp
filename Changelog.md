@@ -1,3 +1,9 @@
+### 0.3.1.0
+
+- Add function *getOCSPResponseVerificationData'* which is similar to
+  *getOCSPResponseVerificationData* except it accepts the OCSP response payload
+  in *ASN.1* format. See how it can be used in the *client-ocsp* example.
+
 ### 0.3.0.0
 
 - Add function *getOCSPResponseVerificationData* to help verify the signature of
