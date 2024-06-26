@@ -28,7 +28,7 @@ module Data.X509.OCSP (
                       ,OCSPResponseCertData (..)
                       ,OCSPResponseCertStatus (..)
                       ,decodeOCSPResponse
-    -- * OCSP response verification
+    -- ** OCSP response verification
                       ,OCSPResponseVerificationData (..)
                       ,getOCSPResponseVerificationData
                       ,getOCSPResponseVerificationData'
@@ -297,8 +297,8 @@ data OCSPResponseVerificationData =
 getOCSPResponseVerificationData
     :: OCSPResponse             -- ^ OCSP response
     -> Maybe OCSPResponseVerificationData
-getOCSPResponseVerificationData (ocspRespPayload -> Just resp) =
-    getOCSPResponseVerificationData' $ ocspRespASN1 resp
+getOCSPResponseVerificationData (ocspRespPayload -> Just pl) =
+    getOCSPResponseVerificationData' $ ocspRespASN1 pl
 getOCSPResponseVerificationData _ = Nothing
 
 -- | Get verification data from OCSP response payload.
