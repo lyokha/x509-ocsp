@@ -251,10 +251,10 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
 --
 -- This data can be used to verify the signature of the OCSP response with
 -- 'Data.X509.Validation.verifySignature'. The response is signed with
--- signature /ocspRespSignature/. Binary data /ocspRespDer/ and algorthm
--- /ocspRespSignatureAlg/ are what was used to sign the response. The
+-- signature /ocspRespSignature/. Binary data /ocspRespDer/ and algorithm
+-- /ocspRespSignatureAlg/ are what has been used to sign the response. The
 -- verification process may require the public key of the issuer certificate
--- if it's not attached in /ocspRespCerts/.
+-- if it's not been attached in /ocspRespCerts/.
 --
 -- See details of signing and verification of OCSP responses in /rfc6960/.
 --
@@ -279,7 +279,8 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
 -- is not checked in the function.
 --
 -- To verify update times, check the values of 'ocspRespCertThisUpdate' and
--- 'ocspRespCertNextUpdate'.
+-- 'ocspRespCertNextUpdate' which both must have been constructed as
+-- 'TimeGeneralized'.
 data OCSPResponseVerificationData =
     OCSPResponseVerificationData { ocspRespDer :: ByteString
                                    -- ^ Response data (DER-encoded)
