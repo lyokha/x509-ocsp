@@ -113,13 +113,22 @@ validateWithOCSPReq man store cache sid
           failure = pure . CacheSaysNo
           checks = foldl1 (<>)
 
--- Note: OCSP Signature Authority Delegation is not supported here
 verifySignature' :: [ASN1] -> Certificate -> SignatureVerification
-verifySignature' resp Certificate {..}
+verifySignature' resp certI
     | Just OCSPResponseVerificationData {..} <-
         getOCSPResponseVerificationData' resp =
-            verifySignature ocspRespSignatureAlg certPubKey ocspRespDer
-                ocspRespSignature
+            case ocspRespCerts of
+                (Signed cert alg sig, der) : _
+                    | Just (ExtExtendedKeyUsage eku) <-
+                        extensionGet $ certExtensions cert
+                    , KeyUsagePurpose_OCSPSigning `elem` eku ->
+                        case verifySignature alg (certPubKey certI) der sig of
+                            SignaturePass -> verifySignature
+                                ocspRespSignatureAlg (certPubKey cert)
+                                    ocspRespDer ocspRespSignature
+                            v -> v
+                _ -> verifySignature ocspRespSignatureAlg (certPubKey certI)
+                         ocspRespDer ocspRespSignature
     | otherwise = SignatureFailed SignatureInvalid
 
 main :: IO ()

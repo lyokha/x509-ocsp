@@ -1,3 +1,10 @@
+### 0.4.0.0
+
+- Field *ocspRespCerts* of *OCSPResponseVerificationData* now contains a list
+  of *signed certificates* augmented by *DER*-encoded *tbsCertificate* as defined
+  in *rfc5280*. This enables check of the OCSP Signature Authority Delegation.
+  See a basic implementation of the check in the *client-ocsp* example.
+
 ### 0.3.1.0
 
 - Add function *getOCSPResponseVerificationData'* which is similar to

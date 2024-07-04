@@ -254,7 +254,9 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
 -- signature /ocspRespSignature/. Binary data /ocspRespDer/ and algorithm
 -- /ocspRespSignatureAlg/ are what has been used to sign the response. The
 -- verification process may require the public key of the issuer certificate
--- if it's not been attached in /ocspRespCerts/.
+-- if it's not been attached in /ocspRespCerts/. The latter contains a list of
+-- signed certificates augmented by DER-encoded /tbsCertificate/ as defined in
+-- /rfc5280/.
 --
 -- See details of signing and verification of OCSP responses in /rfc6960/.
 --
@@ -276,21 +278,22 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
 --
 -- Note that the issuer certificate gets passed to /verifySignature\'/ rather
 -- than looked up in /ocspRespCerts/. The OCSP Signature Authority Delegation
--- is not checked in the function.
+-- is not checked in this simple example.
 --
 -- To verify update times, check the values of 'ocspRespCertThisUpdate' and
 -- 'ocspRespCertNextUpdate' which both must have been constructed as
 -- 'TimeGeneralized'.
 data OCSPResponseVerificationData =
-    OCSPResponseVerificationData { ocspRespDer :: ByteString
-                                   -- ^ Response data (DER-encoded)
-                                 , ocspRespSignatureAlg :: SignatureALG
-                                   -- ^ Signature algorithm
-                                 , ocspRespSignature :: ByteString
-                                   -- ^ Signature
-                                 , ocspRespCerts :: [Certificate]
-                                   -- ^ Certificates
-                                 } deriving (Show, Eq)
+    OCSPResponseVerificationData
+        { ocspRespDer :: ByteString
+          -- ^ Response data (DER-encoded)
+        , ocspRespSignatureAlg :: SignatureALG
+          -- ^ Signature algorithm
+        , ocspRespSignature :: ByteString
+          -- ^ Signature
+        , ocspRespCerts :: [(Signed Certificate, ByteString)]
+          -- ^ List of signed certificates
+        } deriving (Show, Eq)
 
 -- | Get verification data from OCSP response.
 --
@@ -316,7 +319,7 @@ getOCSPResponseVerificationData' (Start Sequence : Start Sequence : c1) = do
     case next of
         Start Sequence : c2 -> do
             let (wrapInSequence -> alg, next') = getConstructedEnd 0 c2
-            (alg', _) <- either (const Nothing) Just $ fromASN1 alg
+            (alg', []) <- fromASN1' alg
             case next' of
                 BitString (BitArray _ sig) : c3
                     | c3 == [End Sequence] ->
@@ -331,10 +334,22 @@ getOCSPResponseVerificationData' (Start Sequence : Start Sequence : c1) = do
                 _ -> Nothing
         _ -> Nothing
     where collectCerts (Start Sequence : c4) certs
-              | (Start Sequence : cert, c5) <- getConstructedEnd 0 c4 =
-                  case fromASN1 (getCurrentContainerContents cert) of
-                      Right (cert', _) -> collectCerts c5 $ cert' : certs
-                      _ -> Nothing
+              | (Start Sequence : cert, c5) <- getConstructedEnd 0 c4 = do
+                    let (cert', next) = getConstructedEnd 0 cert
+                    case next of
+                        Start Sequence : cc1 -> do
+                            let (wrapInSequence -> alg, next') =
+                                    getConstructedEnd 0 cc1
+                            (alg', []) <- fromASN1' alg
+                            case next' of
+                                [BitString (BitArray _ sig)] -> do
+                                    (cert'', []) <- fromASN1' cert'
+                                    collectCerts c5 $
+                                        ( Signed cert'' alg' sig
+                                        , encodeASN1' DER $ wrapInSequence cert'
+                                        ) : certs
+                                _ -> Nothing
+                        _ -> Nothing
           collectCerts [End Sequence, End (Container Context 0)] certs =
               Just certs
           collectCerts _ _ =
@@ -347,4 +362,7 @@ getCurrentContainerContents = fst . getConstructedEnd 0
 
 skipCurrentContainer :: [ASN1] -> [ASN1]
 skipCurrentContainer = snd . getConstructedEnd 0
+
+fromASN1' :: ASN1Object a => [ASN1] -> Maybe (a, [ASN1])
+fromASN1' = either (const Nothing) Just . fromASN1
 
