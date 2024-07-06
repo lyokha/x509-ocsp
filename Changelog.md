@@ -1,3 +1,8 @@
+### 0.4.0.1
+
+- Ensure that the list of certificates in the OCSP response makes the right
+  ASN.1 sequence.
+
 ### 0.4.0.0
 
 - Field *ocspRespCerts* of *OCSPResponseVerificationData* now contains a list

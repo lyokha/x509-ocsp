@@ -292,7 +292,7 @@ data OCSPResponseVerificationData =
         , ocspRespSignature :: ByteString
           -- ^ Signature
         , ocspRespCerts :: [(Signed Certificate, ByteString)]
-          -- ^ List of signed certificates
+          -- ^ List of signed certificates with DER-encoded certificate data
         } deriving (Show, Eq)
 
 -- | Get verification data from OCSP response.
@@ -327,10 +327,11 @@ getOCSPResponseVerificationData' (Start Sequence : Start Sequence : c1) = do
                             der alg' sig []
                     | Start (Container Context 0)
                         : Start Sequence
-                        : certs <- getCurrentContainerContents c3 -> do
-                            certs' <- reverse <$> collectCerts certs []
-                            Just $ OCSPResponseVerificationData
-                                der alg' sig certs'
+                        : certs@(Start Sequence : _) <-
+                            getCurrentContainerContents c3 -> do
+                                certs' <- reverse <$> collectCerts certs []
+                                Just $ OCSPResponseVerificationData
+                                    der alg' sig certs'
                 _ -> Nothing
         _ -> Nothing
     where collectCerts (Start Sequence : c4) certs
