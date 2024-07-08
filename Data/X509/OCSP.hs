@@ -313,44 +313,31 @@ getOCSPResponseVerificationData _ = Nothing
 getOCSPResponseVerificationData'
     :: [ASN1]                   -- ^ OCSP response payload
     -> Maybe OCSPResponseVerificationData
-getOCSPResponseVerificationData' (Start Sequence : Start Sequence : c1) = do
-    let (wrapInSequence -> resp'', next) = getConstructedEnd 0 c1
-        der = encodeASN1' DER resp''
-    case next of
-        Start Sequence : c2 -> do
-            let (wrapInSequence -> alg, next') = getConstructedEnd 0 c2
-            (alg', []) <- fromASN1' alg
-            case next' of
-                BitString (BitArray _ sig) : c3
-                    | c3 == [End Sequence] ->
-                        Just $ OCSPResponseVerificationData
-                            der alg' sig []
-                    | Start (Container Context 0)
-                        : Start Sequence
-                        : certs@(Start Sequence : _) <-
-                            getCurrentContainerContents c3 -> do
-                                certs' <- reverse <$> collectCerts certs []
-                                Just $ OCSPResponseVerificationData
-                                    der alg' sig certs'
-                _ -> Nothing
-        _ -> Nothing
+getOCSPResponseVerificationData' (Start Sequence : Start Sequence : c1)
+    | (resp, Start Sequence : c2) <- getConstructedEnd 0 c1
+    , (alg, BitString (BitArray _ sig) : c3) <- getConstructedEnd 0 c2 = do
+        (alg', []) <- fromASN1' $ wrapInSequence alg
+        let der = encodeASN1' DER $ wrapInSequence resp
+        case c3 of
+            [End Sequence] -> Just []
+            _ | Start (Container Context 0)
+                  : Start Sequence
+                  : certs@(Start Sequence : _) <-
+                      getCurrentContainerContents c3 ->
+                          reverse <$> collectCerts certs []
+              | otherwise -> Nothing
+            >>= Just . OCSPResponseVerificationData der alg' sig
     where collectCerts (Start Sequence : c4) certs
-              | (Start Sequence : cert, c5) <- getConstructedEnd 0 c4 = do
-                    let (cert', next) = getConstructedEnd 0 cert
-                    case next of
-                        Start Sequence : cc1 -> do
-                            let (wrapInSequence -> alg, next') =
-                                    getConstructedEnd 0 cc1
-                            (alg', []) <- fromASN1' alg
-                            case next' of
-                                [BitString (BitArray _ sig)] -> do
-                                    (cert'', []) <- fromASN1' cert'
-                                    collectCerts c5 $
-                                        ( Signed cert'' alg' sig
-                                        , encodeASN1' DER $ wrapInSequence cert'
-                                        ) : certs
-                                _ -> Nothing
-                        _ -> Nothing
+              | (Start Sequence : cert, c5) <- getConstructedEnd 0 c4
+              , (cert', Start Sequence : c6) <- getConstructedEnd 0 cert
+              , (alg, [BitString (BitArray _ sig)]) <-
+                  getConstructedEnd 0 c6 = do
+                      (alg', []) <- fromASN1' $ wrapInSequence alg
+                      (cert'', []) <- fromASN1' cert'
+                      collectCerts c5 $
+                          ( Signed cert'' alg' sig
+                          , encodeASN1' DER $ wrapInSequence cert'
+                          ) : certs
           collectCerts [End Sequence, End (Container Context 0)] certs =
               Just certs
           collectCerts _ _ =
