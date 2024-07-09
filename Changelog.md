@@ -1,14 +1,16 @@
 ### 0.4.0.1
 
-- Ensure that the list of certificates in the OCSP response makes the right
-  ASN.1 sequence.
+- Ensure that the list of certificates in the OCSP response comprises the
+  correct ASN.1 sequence.
+- Refactor function *getOCSPResponseVerificationData'*.
 
 ### 0.4.0.0
 
 - Field *ocspRespCerts* of *OCSPResponseVerificationData* now contains a list
-  of *signed certificates* augmented by *DER*-encoded *tbsCertificate* as defined
-  in *rfc5280*. This enables check of the OCSP Signature Authority Delegation.
-  See a basic implementation of the check in the *client-ocsp* example.
+  of *signed certificates* augmented by *DER*-encoded *tbsCertificate* as
+  defined in *rfc5280*. This enables check of the OCSP Signature Authority
+  Delegation. See a basic implementation of the check in the *client-ocsp*
+  example.
 
 ### 0.3.1.0
 
