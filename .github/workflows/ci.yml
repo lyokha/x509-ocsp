@@ -71,9 +71,9 @@ jobs:
           cd test/client-ocsp
           sed -i "s'^user\(\s\)'# user\1';"`
                 `"s'\(^\s*ssl_certificate\s\+\).*'"`
-                `"\1$certsdir/server-chain.crt';"`
+                `"\1$certsdir/server-chain.crt;';"`
                 `"s'\(^\s*ssl_certificate_key\s\+\).*'"`
-                `"\1$certsdir/server/server.key'" nginx.conf
+                `"\1$certsdir/server/server.key;'" nginx.conf
           nginx -c "$(pwd)/nginx.conf"
           touch ../data/index.txt
           openssl ocsp -index ../data/index.txt -port 8081 \
