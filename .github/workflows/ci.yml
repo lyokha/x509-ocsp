@@ -74,8 +74,12 @@ jobs:
                 `"\1$certsdir/server-chain.crt;';"`
                 `"s'\(^\s*ssl_certificate_key\s\+\).*'"`
                 `"\1$certsdir/server/server.key;'" nginx.conf
-          nginx -c "$(pwd)/nginx.conf"
+          sudo nginx -c "$(pwd)/nginx.conf"
           touch ../data/index.txt
+          openssl ca -valid ../data/certs/server/server.crt \
+              -keyfile ../data/certs/root/rootCA.key \
+              -cert ../data/certs/root/rootCA.crt \
+              -config ../data/certs/openssl.cnf
           openssl ocsp -index ../data/index.txt -port 8081 \
               -rsigner ../data/certs/root/rootCA.crt \
               -rkey ../data/certs/root/rootCA.key \
@@ -94,5 +98,5 @@ jobs:
           opensslocsppid=$!
           cabal run | grep OCSPRespCertRevoked
           kill $opensslocsppid
-          pkill -QUIT nginx
+          sudo pkill -QUIT nginx
 
