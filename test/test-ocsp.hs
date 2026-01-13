@@ -15,12 +15,12 @@ import Data.ASN1.Types
 import Data.ASN1.Encoding
 import Data.ASN1.BinaryEncoding
 import Data.List (uncons)
- 
+
 toCertificate :: ByteString -> Certificate
 toCertificate cert = either error getCertificate $ do
     pem <- pemParseBS cert >>= maybe (Left "no pems") (pure . fst) . uncons
     decodeSignedObject $ pemContent pem
- 
+
 testAIA :: Certificate -> Test
 testAIA cert = TestCase $ extensionGet (certExtensions cert) @?= expected
     where expected = Just $
@@ -29,21 +29,21 @@ testAIA cert = TestCase $ extensionGet (certExtensions cert) @?= expected
                                        , aiaLocation = "http://localhost:8081"
                                        }
                   ]
- 
+
 testOCSPRequestASN1 :: Certificate -> Certificate -> [ASN1] -> Test
 testOCSPRequestASN1 cert issuerCert = TestCase . (buildRequest @?=)
     where buildRequest = fst $ encodeOCSPRequestASN1 cert issuerCert
- 
+
 testOCSPRequest :: Certificate -> Certificate -> ByteString -> Test
 testOCSPRequest cert issuerCert = TestCase . (buildRequest @?=) . L.fromStrict
     where buildRequest = fst $ encodeOCSPRequest cert issuerCert
- 
+
 testOCSPResponse :: Maybe OCSPResponse -> Test
 testOCSPResponse resp =
     TestCase $ getRespStatus @?= Just OCSPRespCertGood
     where getRespStatus = ocspRespCertStatus . ocspRespCertData <$>
               (resp >>= ocspRespPayload)
- 
+
 verifyOCSPResponse :: Certificate -> Maybe OCSPResponse -> Test
 verifyOCSPResponse issuerCert resp =
     TestCase $ getVerificationStatus @?= Just SignaturePass

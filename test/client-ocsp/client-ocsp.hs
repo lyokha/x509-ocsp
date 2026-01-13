@@ -20,6 +20,7 @@ import Network.HTTP.Client.TLS
 import Network.Connection
 import Network.TLS
 import Network.TLS.Extra.Cipher
+import Control.Exception
 
 mkManager :: Manager -> IO Manager
 mkManager man = do
@@ -69,6 +70,8 @@ validateWithOCSPReq man store cache sid
                                       )
                                 ) -> do
                                     now <- dateCurrent
+                                    -- print $ ocspRespCerts <$>
+                                    --     getOCSPResponseVerificationData' resp'
                                     return $ checks
                                          [ checkCertStatus ocspRespCertStatus
                                          , checkSignature resp' certI
@@ -132,7 +135,9 @@ verifySignature' resp certI
     | otherwise = SignatureFailed SignatureInvalid
 
 main :: IO ()
-main = do
+main = handle (putStrLn . ("Exception: " <>)
+               . (displayException :: HttpException -> String)
+              ) $ do
     manOCSP <- newManager defaultManagerSettings
     man <- mkManager manOCSP
     req <- parseRequest "https://localhost:8010"

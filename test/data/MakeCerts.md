@@ -12,7 +12,7 @@ Create the root certificate and a signing request for the server certificate.
 ```ShellSession
 $ openssl genrsa -out certs/root/rootCA.key 2048
 $ openssl req -new -x509 -days 365 -key certs/root/rootCA.key -out certs/root/rootCA.crt -subj '/C=US/ST=California/L=San Francisco/O=My Company/OU=OCSP Test/CN=My Company Root/UID=testOCSP'
-$ openssl req -new -newkey rsa:2048 -nodes -out certs/server/server.csr -subj '/C=US/ST=California/L=San Francisco/O=My Company/OU=OCSP Test/CN=localhost/UID=testOCSP' -keyout certs/server/server.key -config certs/openssl.cnf -extensions v3_exts
+$ openssl req -new -newkey rsa:2048 -nodes -out certs/server/server.csr -subj '/C=US/ST=California/L=San Francisco/O=My Company/OU=OCSP Test/CN=localhost/UID=testOCSP' -keyout certs/server/server.key -config certs/openssl.cnf
 ```
 
 Create and sign the server certificate.
@@ -20,6 +20,9 @@ Create and sign the server certificate.
 ```ShellSession
 $ openssl x509 -req -days 365 -in certs/server/server.csr -CA certs/root/rootCA.crt -CAkey certs/root/rootCA.key -set_serial 01 -out certs/server/server.crt -extfile certs/openssl.cnf -extensions v3_exts
 ```
+
+(Note, however, that for the sake of convenience, both root and server
+certificates in this repository were actually built with option *-days 36500*.)
 
 Make the root certificate trusted by the system (the following commands have
 meaning in *Fedora*, other systems may require other commands).

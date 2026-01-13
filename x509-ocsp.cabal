@@ -1,7 +1,7 @@
 cabal-version:          2.4
 
 name:                   x509-ocsp
-version:                0.4.0.1
+version:                0.4.0.2
 synopsis:               Basic X509 OCSP implementation
 description:            Build X509 OCSP requests and parse responses
 homepage:               https://github.com/lyokha/x509-ocsp
@@ -12,7 +12,7 @@ data-files:             test/data/**/*.crt test/data/*.der
 author:                 Alexey Radkov <alexey.radkov@gmail.com>
 maintainer:             Alexey Radkov <alexey.radkov@gmail.com>
 stability:              experimental
-copyright:              2024 Alexey Radkov
+copyright:              2024-2026 Alexey Radkov
 category:               Data
 build-type:             Simple
 
@@ -25,8 +25,8 @@ library
   build-depends:        base >= 4.8 && < 5
                       , bytestring
                       , crypton-x509
-                      , asn1-encoding
-                      , asn1-types
+                      , crypton-asn1-encoding
+                      , crypton-asn1-types
                       , cryptohash-sha1
 
             -- only needed for haddock to hyperlink entities in code examples:
@@ -44,9 +44,9 @@ test-suite test-ocsp
                       , bytestring
                       , crypton-x509
                       , crypton-x509-validation
-                      , asn1-encoding
-                      , asn1-types
-                      , pem
+                      , crypton-asn1-encoding
+                      , crypton-asn1-types
+                      , crypton-pem
                       , x509-ocsp
 
   type:                 exitcode-stdio-1.0

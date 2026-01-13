@@ -3,7 +3,7 @@
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.X509.AIA
--- Copyright   :  (c) Alexey Radkov 2024
+-- Copyright   :  (c) Alexey Radkov 2024-2026
 -- License     :  BSD-style
 --
 -- Maintainer  :  alexey.radkov@gmail.com

@@ -3,7 +3,7 @@
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.X509.OCSP
--- Copyright   :  (c) Alexey Radkov 2024
+-- Copyright   :  (c) Alexey Radkov 2024-2026
 -- License     :  BSD-style
 --
 -- Maintainer  :  alexey.radkov@gmail.com
@@ -89,7 +89,7 @@ data CertId = CertId { certIdIssuerNameHash :: ByteString
 -- | Build and encode OCSP request in ASN.1 format.
 --
 -- The returned value contains the encoded request and an object of type
--- 'CertId' with hashes calculated by the SHA1 algorithm.
+-- t'CertId' with hashes calculated by the SHA1 algorithm.
 encodeOCSPRequestASN1
     :: Certificate              -- ^ Certificate
     -> Certificate              -- ^ Issuer certificate
@@ -122,7 +122,7 @@ encodeOCSPRequestASN1 cert issuerCert =
 -- | Build and encode OCSP request in ASN.1\/DER format.
 --
 -- The returned value contains the encoded request and an object of type
--- 'CertId' with hashes calculated by the SHA1 algorithm.
+-- t'CertId' with hashes calculated by the SHA1 algorithm.
 encodeOCSPRequest
     :: Certificate              -- ^ Certificate
     -> Certificate              -- ^ Issuer certificate
@@ -267,7 +267,7 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
 --
 -- -- ...
 --
--- verifySignature\' :: 'OCSPResponse' -> 'Certificate' -> t'Data.X509.Validation.SignatureVerification'
+-- verifySignature\' :: t'OCSPResponse' -> t'Certificate' -> t'Data.X509.Validation.SignatureVerification'
 -- verifySignature\' resp v'Certificate' {..}
 --     | Just __/OCSPResponseVerificationData/__ {..} <-
 --         'getOCSPResponseVerificationData' resp =

@@ -9,24 +9,90 @@ jobs:
     continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
-        ghc: ['8.10', '9.0', '9.2', '9.4', '9.6', '9.8', '9.10']
-        cabal: ['3.12']
+        ghc: ['9.6', '9.8', '9.10', '9.12']
+        cabal: ['3.16']
         experimental: [false]
+        include:
+          - ghc: '9.14'
+            cabal: '3.16'
+            experimental: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install GHC and Cabal
         uses: haskell-actions/setup@v2
         with:
           ghc-version: ${{ matrix.ghc }}
           cabal-version: ${{ matrix.cabal }}
-      - name: Build
+          cabal-update: true
+      - name: Install Nginx
+        run: |
+          sudo apt-get update 
+          sudo apt-get install -y nginx
+
+      - name: Build module
         run: |
           cabal --version
           echo "$(ghc --version) "`
               `"[$(ghc --print-project-git-commit-id 2>/dev/null || echo '?')]"
-          cabal update
           cabal build
-      - name: Test
+
+      - name: Test decoder
         run: cabal test
+
+      - name: Build OCSP client
+        run: |
+          cd test/client-ocsp
+          cabal build
+
+      - name: Test OCSP client
+        run: |
+          cd test/data
+          openssl genrsa -out certs/root/rootCA.key 2048
+          openssl req -new -x509 -days 1 -key certs/root/rootCA.key \
+              -out certs/root/rootCA.crt \
+              -subj '/C=US/ST=California/L=San Francisco/O=My Company'`
+                   `'/OU=OCSP Test/CN=My Company Root/UID=testOCSP'
+          openssl req -new -newkey rsa:2048 -nodes \
+              -out certs/server/server.csr \
+              -subj '/C=US/ST=California/L=San Francisco/O=My Company'`
+                  `'/OU=OCSP Test/CN=localhost/UID=testOCSP' \
+              -keyout certs/server/server.key -config certs/openssl.cnf
+          openssl x509 -req -days 1 -in certs/server/server.csr \
+              -CA certs/root/rootCA.crt -CAkey certs/root/rootCA.key \
+              -set_serial 01 -out certs/server/server.crt \
+              -extfile certs/openssl.cnf -extensions v3_exts
+          sudo install certs/root/rootCA.crt /usr/local/share/ca-certificates
+          sudo update-ca-certificates
+          cat certs/server/server.crt certs/root/rootCA.crt \
+              > certs/server-chain.crt
+          certsdir="$(pwd)/certs"
+          cd -
+          cd test/client-ocsp
+          sed -i "s'^user\(\s\)'# user\1';"`
+                `"s'\(^\s*ssl_certificate\s\+\).*'"`
+                `"\1$certsdir/server-chain.crt';"`
+                `"s'\(^\s*ssl_certificate_key\s\+\).*'"`
+                `"\1$certsdir/server/server.key'" nginx.conf
+          nginx -c "$(pwd)/nginx.conf"
+          touch ../data/index.txt
+          openssl ocsp -index ../data/index.txt -port 8081 \
+              -rsigner ../data/certs/root/rootCA.crt \
+              -rkey ../data/certs/root/rootCA.key \
+              -CA ../data/certs/root/rootCA.crt -text &
+          opensslocsppid=$!
+          cabal run | grep 'In backend 8010'
+          kill $opensslocsppid
+          openssl ca -revoke ../data/certs/server/server.crt \
+              -keyfile ../data/certs/root/rootCA.key \
+              -cert ../data/certs/root/rootCA.crt \
+              -config ../data/certs/openssl.cnf
+          openssl ocsp -index ../data/index.txt -port 8081 \
+              -rsigner ../data/certs/root/rootCA.crt \
+              -rkey ../data/certs/root/rootCA.key \
+              -CA ../data/certs/root/rootCA.crt -text &
+          opensslocsppid=$!
+          cabal run | grep OCSPRespCertRevoked
+          kill $opensslocsppid
+          pkill -QUIT nginx
 

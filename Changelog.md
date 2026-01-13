@@ -1,3 +1,8 @@
+### 0.4.0.2
+
+- Migrate from _asn1-\*_, *pem*, *hourgrass* to _crypton-asn1-\*_,
+  *crypton-pem*, *time-hourgrass* respectively.
+
 ### 0.4.0.1
 
 - Ensure that the list of certificates in the OCSP response comprises the
