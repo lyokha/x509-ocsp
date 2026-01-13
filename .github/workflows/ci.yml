@@ -48,6 +48,9 @@ jobs:
       - name: Test OCSP client
         run: |
           cd test/data
+          certsdir="$(pwd)/certs"
+          sed -i "s'\(^database\s*=\s*\).*'\1$certsdir/index.txt'" \
+              certs/openssl.cnf
           openssl genrsa -out certs/root/rootCA.key 2048
           openssl req -new -x509 -days 1 -key certs/root/rootCA.key \
               -out certs/root/rootCA.crt \
@@ -66,7 +69,6 @@ jobs:
           sudo update-ca-certificates
           cat certs/server/server.crt certs/root/rootCA.crt \
               > certs/server-chain.crt
-          certsdir="$(pwd)/certs"
           cd -
           cd test/client-ocsp
           sed -i "s'^user\(\s\)'# user\1';"`
