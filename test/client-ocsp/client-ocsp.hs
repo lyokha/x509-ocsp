@@ -136,7 +136,7 @@ verifySignature' resp certI
 
 main :: IO ()
 main = handle (putStrLn . ("Exception: " <>)
-               . (displayException :: HttpException -> String)
+              . (displayException :: HttpException -> String)
               ) $ do
     manOCSP <- newManager defaultManagerSettings
     man <- mkManager manOCSP

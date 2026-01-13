@@ -40,16 +40,20 @@ jobs:
       - name: Test decoder
         run: cabal test
 
-      - name: Build OCSP client
+      - name: Build OCSP-aware HTTP client
         run: |
           cd test/client-ocsp
+          if [ "${{ matrix.ghc }}" = 9.14 ]
+          then
+              echo "allow-newer: all" >> cabal.project
+          fi
           cabal build
 
-      - name: Test OCSP client
+      - name: Test OCSP-aware HTTP client
         run: |
           cd test/data
-          certsdir="$(pwd)/certs"
-          sed -i "s'\(^database\s*=\s*\).*'\1$certsdir/index.txt'" \
+          touch index.txt
+          sed -i "s'\(^database\s*=\s*\).*'\1$(pwd)/index.txt'" \
               certs/openssl.cnf
           openssl genrsa -out certs/root/rootCA.key 2048
           openssl req -new -x509 -days 1 -key certs/root/rootCA.key \
@@ -69,6 +73,7 @@ jobs:
           sudo update-ca-certificates
           cat certs/server/server.crt certs/root/rootCA.crt \
               > certs/server-chain.crt
+          certsdir="$(pwd)/certs"
           cd -
           cd test/client-ocsp
           sed -i "s'^user\(\s\)'# user\1';"`
@@ -77,7 +82,6 @@ jobs:
                 `"s'\(^\s*ssl_certificate_key\s\+\).*'"`
                 `"\1$certsdir/server/server.key;'" nginx.conf
           sudo nginx -c "$(pwd)/nginx.conf"
-          touch ../data/index.txt
           openssl ca -valid ../data/certs/server/server.crt \
               -keyfile ../data/certs/root/rootCA.key \
               -cert ../data/certs/root/rootCA.crt \
