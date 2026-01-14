@@ -67,7 +67,7 @@ run *cabal run* twice instead of restarting the responder).
 
 ```ShellSession
 $ cabal run
-client-ocsp: HttpExceptionRequest Request {
+Exception: HttpExceptionRequest Request {
   host                 = "localhost"
   port                 = 8010
   secure               = True

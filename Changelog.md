@@ -1,7 +1,7 @@
-### 0.4.0.2
+### 0.4.1.0
 
-- Migrate from _asn1-\*_, *pem*, *hourgrass* to _crypton-asn1-\*_,
-  *crypton-pem*, *time-hourgrass* respectively.
+- Migrate from _asn1-\*_, *pem*, *hourglass* to _crypton-asn1-\*_,
+  *crypton-pem*, *time-hourglass* respectively.
 
 ### 0.4.0.1
 
