@@ -9,13 +9,13 @@ jobs:
     continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
-        ghc: ['9.6', '9.8', '9.10', '9.12']
-        cabal: ['3.16']
-        experimental: [false]
+        ghc: ['9.6', '9.8', '9.10', '9.12', '9.14']
         include:
+          - cabal: '3.16'
+          - experimental: false
           - ghc: '9.14'
-            cabal: '3.16'
             experimental: true
+            allownewer: true
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -43,7 +43,7 @@ jobs:
       - name: Build OCSP-aware HTTP client
         run: |
           cd test/client-ocsp
-          if [ "${{ matrix.ghc }}" = 9.14 ]
+          if [ "${{ matrix.allownewer }}" = true ]
           then
               echo "allow-newer: all" >> cabal.project
           fi
