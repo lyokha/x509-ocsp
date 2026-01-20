@@ -46,8 +46,8 @@ import qualified Data.ByteString.Lazy as L
 import Data.Int
 import Data.Word
 import Data.Bits
+import Data.Bifunctor
 import Crypto.Hash.SHA1
-import Control.Arrow
 
 pattern OidAlgorithmSHA1 :: [Integer]
 pattern OidAlgorithmSHA1 = [1, 3, 14, 3, 2, 26]

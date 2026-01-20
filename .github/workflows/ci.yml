@@ -27,7 +27,7 @@ jobs:
           cabal-update: true
       - name: Install Nginx
         run: |
-          sudo apt-get update 
+          sudo apt-get update
           sudo apt-get install -y nginx
 
       - name: Build module
@@ -36,9 +36,6 @@ jobs:
           echo "$(ghc --version) "`
               `"[$(ghc --print-project-git-commit-id 2>/dev/null || echo '?')]"
           cabal build
-
-      - name: Test decoder
-        run: cabal test
 
       - name: Build OCSP-aware HTTP client
         run: |
@@ -49,10 +46,9 @@ jobs:
           fi
           cabal build
 
-      - name: Test OCSP-aware HTTP client
+      - name: Generate certificates
         run: |
           cd test/data
-          touch index.txt
           sed -i "s'\(^database\s*=\s*\).*'\1$(pwd)/index.txt'" \
               certs/openssl.cnf
           openssl genrsa -out certs/root/rootCA.key 2048
@@ -73,8 +69,11 @@ jobs:
           sudo update-ca-certificates
           cat certs/server/server.crt certs/root/rootCA.crt \
               > certs/server-chain.crt
-          certsdir="$(pwd)/certs"
-          cd -
+
+      - name: Test OCSP-aware HTTP client and generate DER data
+        run: |
+          touch test/data/index.txt
+          certsdir="$(pwd)/test/data/certs"
           cd test/client-ocsp
           sed -i "s'^user\(\s\)'# user\1';"`
                 `"s'\(^\s*ssl_certificate\s\+\).*'"`
@@ -92,6 +91,9 @@ jobs:
               -CA ../data/certs/root/rootCA.crt -text &
           opensslocsppid=$!
           cabal run | grep 'In backend 8010'
+          openssl ocsp -issuer ../data/certs/root/rootCA.crt \
+              -cert ../data/certs/server/server.crt \
+              -reqout ../data/req.der -no_nonce
           kill $opensslocsppid
           openssl ca -revoke ../data/certs/server/server.crt \
               -keyfile ../data/certs/root/rootCA.key \
@@ -103,6 +105,12 @@ jobs:
               -CA ../data/certs/root/rootCA.crt -text &
           opensslocsppid=$!
           cabal run | grep OCSPRespCertRevoked
+          openssl ocsp -issuer ../data/certs/root/rootCA.crt \
+              -cert ../data/certs/server/server.crt \
+              -url http://localhost:8081 -respout ../data/resp.der
           kill $opensslocsppid
           sudo pkill -QUIT nginx
+
+      - name: Test decoder (cabal test)
+        run: cabal test
 
