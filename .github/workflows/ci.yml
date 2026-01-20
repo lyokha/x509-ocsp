@@ -94,6 +94,9 @@ jobs:
           openssl ocsp -issuer ../data/certs/root/rootCA.crt \
               -cert ../data/certs/server/server.crt \
               -reqout ../data/req.der -no_nonce
+          openssl ocsp -issuer ../data/certs/root/rootCA.crt \
+              -cert ../data/certs/server/server.crt \
+              -url http://localhost:8081 -respout ../data/resp.der
           kill $opensslocsppid
           openssl ca -revoke ../data/certs/server/server.crt \
               -keyfile ../data/certs/root/rootCA.key \
@@ -105,9 +108,6 @@ jobs:
               -CA ../data/certs/root/rootCA.crt -text &
           opensslocsppid=$!
           cabal run | grep OCSPRespCertRevoked
-          openssl ocsp -issuer ../data/certs/root/rootCA.crt \
-              -cert ../data/certs/server/server.crt \
-              -url http://localhost:8081 -respout ../data/resp.der
           kill $opensslocsppid
           sudo pkill -QUIT nginx
 
