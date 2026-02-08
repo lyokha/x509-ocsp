@@ -16,12 +16,12 @@ executable client-ocsp
                       , http-client-tls
                       , bytestring
                       , crypton-connection
-                      , crypton-x509
+                      , crypton-x509 >= 1.8
                       , crypton-x509-store
                       , crypton-x509-system
-                      , crypton-x509-validation
+                      , crypton-x509-validation >= 1.8.0
                       , crypton-asn1-types
-                      , tls
+                      , tls >= 2.2.0
                       , time-hourglass
                       , data-default-class
                       , x509-ocsp
