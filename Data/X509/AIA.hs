@@ -25,13 +25,13 @@ import Data.ASN1.Types
 import Data.ASN1.Stream
 import Data.ByteString (ByteString)
 
-pattern OidAIA :: [Integer]
+pattern OidAIA :: OID
 pattern OidAIA = [1, 3, 6, 1, 5, 5, 7, 1, 1]
 
-pattern OidOCSP :: [Integer]
+pattern OidOCSP :: OID
 pattern OidOCSP = [1, 3, 6, 1, 5, 5, 7, 48, 1]
 
-pattern OidCAIssuers :: [Integer]
+pattern OidCAIssuers :: OID
 pattern OidCAIssuers = [1, 3, 6, 1, 5, 5, 7, 48, 2]
 
 -- | Authority Info Access description.

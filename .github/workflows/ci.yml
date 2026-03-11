@@ -14,7 +14,6 @@ jobs:
           - cabal: '3.16'
           - experimental: false
           - ghc: '9.14'
-            experimental: true
             allownewer: true
     steps:
       - name: Checkout

@@ -1,4 +1,5 @@
-{-# LANGUAGE PatternSynonyms, ViewPatterns, LambdaCase #-}
+{-# LANGUAGE PatternSynonyms, ViewPatterns, TypeApplications, LambdaCase #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -42,49 +43,70 @@ import Data.ASN1.BitArray
 import Data.ASN1.Stream
 import Data.ASN1.Error
 import Data.ByteString (ByteString)
-import qualified Data.ByteString.Lazy as L
+import Data.ByteString.Lazy qualified as L
 import Data.Int
 import Data.Word
 import Data.Bits
 import Data.Bifunctor
-import Crypto.Hash.SHA1
+import Data.ByteArray qualified as BA
+import Crypto.Hash
 
-pattern OidAlgorithmSHA1 :: [Integer]
+pattern OidAlgorithmSHA1 :: OID
 pattern OidAlgorithmSHA1 = [1, 3, 14, 3, 2, 26]
 
-pattern OidBasicOCSPResponse :: [Integer]
+pattern OidBasicOCSPResponse :: OID
 pattern OidBasicOCSPResponse = [1, 3, 6, 1, 5, 5, 7, 48, 1, 1]
 
 derLWidth :: Word8 -> Int64
 derLWidth x | testBit x 7 = succ $ fromIntegral $ x .&. 0x7f
             | otherwise = 1
 
-issuerDNHash :: Certificate -> ByteString
+issuerDNHash :: HashAlgorithm a => Certificate -> Digest a
 issuerDNHash cert = hashlazy $ encodeASN1 DER dn
     where dn = toASN1 (certIssuerDN cert) []
+{-# SPECIALIZE issuerDNHash :: Certificate -> Digest SHA1 #-}
 
-pubKeyHash :: Certificate -> ByteString
+pubKeyHash :: HashAlgorithm a => Certificate -> Digest a
 pubKeyHash cert = hashlazy $ L.drop (succ $ derLWidth $ L.head pk) pk
     where pk = case toASN1 (certPubKey cert) [] of
                    Start Sequence
                      : Start Sequence
                      : OID _
-                     : _
-                     : End Sequence
-                     : v@BitString {}
-                     : _ -> L.drop 1 $ encodeASN1 DER $ pure v
+                     : (skipCurrentContainer -> v@BitString {} : _) ->
+                         L.drop 1 $ encodeASN1 DER $ pure v
                    _ -> error "bad pubkey sequence"
+{-# SPECIALIZE pubKeyHash :: Certificate -> Digest SHA1 #-}
 
 -- | Certificate Id.
 --
 -- This data is used when building OCSP requests and parsing OCSP responses.
-data CertId = CertId { certIdIssuerNameHash :: ByteString
+data CertId = CertId { certIdHashAlgorithm :: OID
+                       -- ^ Value of /hashAlgorithm/ as defined in /rfc6960/
+                     , certIdIssuerNameHash :: ByteString
                        -- ^ Value of /issuerNameHash/ as defined in /rfc6960/
                      , certIdIssuerKeyHash :: ByteString
                        -- ^ Value of /issuerKeyHash/ as defined in /rfc6960/
                      , certIdSerialNumber :: Integer
                        -- ^ Certificate serial number
                      } deriving (Show, Eq)
+
+pattern Asn1CertId :: OID -> ByteString -> ByteString -> Integer -> ASN1S
+pattern Asn1CertId alg h1 h2 sn xs =
+    Start Sequence
+    : Start Sequence
+    : OID alg
+    : Null
+    : End Sequence
+    : OctetString h1
+    : OctetString h2
+    : IntVal sn
+    : End Sequence
+    : xs
+
+instance ASN1Object CertId where
+    toASN1 (CertId alg h1 h2 sn) = Asn1CertId alg h1 h2 sn
+    fromASN1 (Asn1CertId alg h1 h2 sn xs) = Right (CertId alg h1 h2 sn, xs)
+    fromASN1 _ = Left "fromASN1: CertId: unexpected format"
 
 -- | Build and encode OCSP request in ASN.1 format.
 --
@@ -95,28 +117,16 @@ encodeOCSPRequestASN1
     -> Certificate              -- ^ Issuer certificate
     -> ([ASN1], CertId)
 encodeOCSPRequestASN1 cert issuerCert =
-    let h1 = issuerDNHash cert
-        h2 = pubKeyHash issuerCert
+    let h1 = BA.convert $ issuerDNHash @SHA1 cert
+        h2 = BA.convert $ pubKeyHash @SHA1 issuerCert
         sn = certSerial cert
-    in ( [ Start Sequence
-         , Start Sequence
-         , Start Sequence
-         , Start Sequence
-         , Start Sequence
-         , Start Sequence
-         , OID OidAlgorithmSHA1
-         , Null
-         , End Sequence
-         , OctetString h1
-         , OctetString h2
-         , IntVal sn
-         , End Sequence
-         , End Sequence
-         , End Sequence
-         , End Sequence
-         , End Sequence
-         ]
-       , CertId h1 h2 sn
+        certId = CertId OidAlgorithmSHA1 h1 h2 sn
+    in ( Start Sequence
+         : Start Sequence
+         : Start Sequence
+         : Start Sequence
+         : toASN1 certId (replicate 4 $ End Sequence)
+       , certId
        )
 
 -- | Build and encode OCSP request in ASN.1\/DER format.
@@ -205,25 +215,15 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                     : Start Sequence
                     : Start (Container Context ctx)
                     : c1 | ctx `elem` [0..2] -> do
-                        let skipVersion =
-                                if ctx == 0
-                                    then drop 1 . skipCurrentContainer
-                                    else id
+                        let skipVersion
+                                | ctx == 0 = drop 1 . skipCurrentContainer
+                                | otherwise = id
                         Just $ getCurrentContainerContents $
                             drop 2 $ skipCurrentContainer $ skipVersion c1
                   _ -> Nothing
               >>= \case
                       Start Sequence
-                        : Start Sequence
-                        : Start Sequence
-                        : OID _
-                        : _
-                        : End Sequence
-                        : OctetString h1
-                        : OctetString h2
-                        : IntVal sn
-                        : End Sequence
-                        : c2 | CertId h1 h2 sn == certId ->
+                        : (fromASN1 -> Right (cId, c2)) | cId == certId ->
                             case c2 of
                                 Other Context (toEnum -> n) _
                                   : c3 -> Just (n, c3)

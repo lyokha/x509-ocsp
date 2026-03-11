@@ -1,7 +1,7 @@
 cabal-version:          2.4
 
 name:                   x509-ocsp
-version:                0.4.1.0
+version:                0.5.0.0
 synopsis:               Basic X509 OCSP implementation
 description:            Build X509 OCSP requests and parse responses
 homepage:               https://github.com/lyokha/x509-ocsp
@@ -24,13 +24,15 @@ library
   default-language:     Haskell2010
   build-depends:        base >= 4.8 && < 5
                       , bytestring
-                      , crypton-x509 >= 1.8
+                      , crypton >= 1.1.0
+                      , crypton-x509 >= 1.9.0
                       , crypton-asn1-encoding
                       , crypton-asn1-types
-                      , cryptohash-sha1
 
             -- only needed for haddock to hyperlink entities in code examples:
-                      , crypton-x509-validation >= 1.8.0
+                      , crypton-x509-validation >= 1.9.0
+
+                      , ram
 
   exposed-modules:      Data.X509.AIA
                       , Data.X509.OCSP
@@ -42,8 +44,8 @@ test-suite test-ocsp
   build-depends:        base >= 4.8 && < 5
                       , HUnit >= 1.6.1.0
                       , bytestring
-                      , crypton-x509 >= 1.8
-                      , crypton-x509-validation >= 1.8.0
+                      , crypton-x509 >= 1.9.0
+                      , crypton-x509-validation >= 1.9.0
                       , crypton-asn1-encoding
                       , crypton-asn1-types
                       , crypton-pem

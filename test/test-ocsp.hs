@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings, ImportQualifiedPost #-}
 
 module Main where
 
@@ -9,8 +9,8 @@ import Data.X509
 import Data.PEM
 import Test.HUnit
 import Data.ByteString (ByteString)
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as L
+import Data.ByteString qualified as B
+import Data.ByteString.Lazy qualified as L
 import Data.ASN1.Types
 import Data.ASN1.Encoding
 import Data.ASN1.BinaryEncoding

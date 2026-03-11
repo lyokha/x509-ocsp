@@ -1,3 +1,10 @@
+### 0.5.0.0
+
+- Migrate from *cryptohash-sha1* to *crypton* and *ram*.
+- Now *CertId* contains the hash algorithm used to calculate the hashes and
+  implements an instance of class *ASN1Object*.
+- Various improvements in the code.
+
 ### 0.4.1.0
 
 - Migrate from _asn1-\*_, *pem*, *hourglass* to _crypton-asn1-\*_,

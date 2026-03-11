@@ -1,4 +1,5 @@
 {-# LANGUAGE ViewPatterns, OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 
 module Main where
 
@@ -8,9 +9,9 @@ import Data.X509.CertificateStore
 import Data.X509.AIA
 import Data.X509.OCSP
 import Data.ASN1.Types
-import Data.Default.Class
-import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString.Char8 as C8
+import Data.Default
+import Data.ByteString.Lazy qualified as L
+import Data.ByteString.Char8 qualified as C8
 import System.X509
 import Time.System
 import Data.Hourglass
