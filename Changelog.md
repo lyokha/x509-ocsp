@@ -1,3 +1,7 @@
+### 0.5.1.0
+
+- Do not export the constructor of *CertId*.
+
 ### 0.5.0.0
 
 - Migrate from *cryptohash-sha1* to *crypton* and *ram*.

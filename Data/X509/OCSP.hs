@@ -18,7 +18,7 @@
 
 module Data.X509.OCSP (
     -- * Shared data
-                       CertId (..)
+                       CertId
     -- * OCSP request
                       ,encodeOCSPRequestASN1
                       ,encodeOCSPRequest
@@ -79,6 +79,9 @@ pubKeyHash cert = hashlazy $ L.drop (succ $ derLWidth $ L.head pk) pk
 
 -- | Certificate Id.
 --
+-- Corresponds to /CertId/ from /rfc6960/. Contains /hashAlgorithm/,
+-- /issuerNameHash/, /issuerKeyHash/, and /serialNumber/.
+--
 -- This data is used when building OCSP requests and parsing OCSP responses.
 data CertId = CertId { certIdHashAlgorithm :: OID
                        -- ^ Value of /hashAlgorithm/ as defined in /rfc6960/
@@ -108,19 +111,24 @@ instance ASN1Object CertId where
     fromASN1 (Asn1CertId alg h1 h2 sn xs) = Right (CertId alg h1 h2 sn, xs)
     fromASN1 _ = Left "fromASN1: CertId: unexpected format"
 
+newCertId :: Certificate -> Certificate -> CertId
+newCertId cert issuerCert =
+    let h1 = BA.convert $ issuerDNHash @SHA1 cert
+        h2 = BA.convert $ pubKeyHash @SHA1 issuerCert
+        sn = certSerial cert
+    in CertId OidAlgorithmSHA1 h1 h2 sn
+
 -- | Build and encode OCSP request in ASN.1 format.
 --
 -- The returned value contains the encoded request and an object of type
--- t'CertId' with hashes calculated by the SHA1 algorithm.
+-- t'CertId' with hashes calculated by the SHA1 algorithm. The returned
+-- /CertId/ must be passed in 'decodeOCSPResponse'.
 encodeOCSPRequestASN1
     :: Certificate              -- ^ Certificate
     -> Certificate              -- ^ Issuer certificate
     -> ([ASN1], CertId)
 encodeOCSPRequestASN1 cert issuerCert =
-    let h1 = BA.convert $ issuerDNHash @SHA1 cert
-        h2 = BA.convert $ pubKeyHash @SHA1 issuerCert
-        sn = certSerial cert
-        certId = CertId OidAlgorithmSHA1 h1 h2 sn
+    let certId = newCertId cert issuerCert
     in ( Start Sequence
          : Start Sequence
          : Start Sequence
@@ -132,7 +140,8 @@ encodeOCSPRequestASN1 cert issuerCert =
 -- | Build and encode OCSP request in ASN.1\/DER format.
 --
 -- The returned value contains the encoded request and an object of type
--- t'CertId' with hashes calculated by the SHA1 algorithm.
+-- t'CertId' with hashes calculated by the SHA1 algorithm. The returned
+-- /CertId/ must be passed in 'decodeOCSPResponse'.
 encodeOCSPRequest
     :: Certificate              -- ^ Certificate
     -> Certificate              -- ^ Issuer certificate
