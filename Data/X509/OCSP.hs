@@ -200,7 +200,7 @@ data OCSPResponseCertStatus = OCSPRespCertGood
 -- The /Right/ value with /Nothing/ gets returned on unexpected ASN.1 contents.
 decodeOCSPResponse
     :: CertId                   -- ^ Certificate Id
-    -> L.ByteString             -- ^ OCSP response
+    -> L.ByteString             -- ^ Raw encoded OCSP response
     -> Either ASN1Error (Maybe OCSPResponse)
 decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
     [ Start Sequence
