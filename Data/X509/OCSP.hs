@@ -57,26 +57,6 @@ pattern OidAlgorithmSHA1 = [1, 3, 14, 3, 2, 26]
 pattern OidBasicOCSPResponse :: OID
 pattern OidBasicOCSPResponse = [1, 3, 6, 1, 5, 5, 7, 48, 1, 1]
 
-derLWidth :: Word8 -> Int64
-derLWidth x | testBit x 7 = succ $ fromIntegral $ x .&. 0x7f
-            | otherwise = 1
-
-issuerDNHash :: HashAlgorithm a => Certificate -> Digest a
-issuerDNHash cert = hashlazy $ encodeASN1 DER dn
-    where dn = toASN1 (certIssuerDN cert) []
-{-# SPECIALIZE issuerDNHash :: Certificate -> Digest SHA1 #-}
-
-pubKeyHash :: HashAlgorithm a => Certificate -> Digest a
-pubKeyHash cert = hashlazy $ L.drop (succ $ derLWidth $ L.head pk) pk
-    where pk = case toASN1 (certPubKey cert) [] of
-                   Start Sequence
-                     : Start Sequence
-                     : OID _
-                     : (skipCurrentContainer -> v@BitString {} : _) ->
-                         L.drop 1 $ encodeASN1 DER $ pure v
-                   _ -> error "bad pubkey sequence"
-{-# SPECIALIZE pubKeyHash :: Certificate -> Digest SHA1 #-}
-
 -- | Certificate Id.
 --
 -- Corresponds to /CertId/ from /rfc6960/. Contains /hashAlgorithm/,
@@ -111,8 +91,28 @@ instance ASN1Object CertId where
     fromASN1 (Asn1CertId alg h1 h2 sn xs) = Right (CertId alg h1 h2 sn, xs)
     fromASN1 _ = Left "fromASN1: CertId: unexpected format"
 
-newCertId :: Certificate -> Certificate -> CertId
-newCertId cert issuerCert =
+derLWidth :: Word8 -> Int64
+derLWidth x | testBit x 7 = succ $ fromIntegral $ x .&. 0x7f
+            | otherwise = 1
+
+issuerDNHash :: HashAlgorithm a => Certificate -> Digest a
+issuerDNHash cert = hashlazy $ encodeASN1 DER dn
+    where dn = toASN1 (certIssuerDN cert) []
+{-# SPECIALIZE issuerDNHash :: Certificate -> Digest SHA1 #-}
+
+pubKeyHash :: HashAlgorithm a => Certificate -> Digest a
+pubKeyHash cert = hashlazy $ L.drop (succ $ derLWidth $ L.head pk) pk
+    where pk = case toASN1 (certPubKey cert) [] of
+                   Start Sequence
+                     : Start Sequence
+                     : OID _
+                     : (skipCurrentContainer -> v@BitString {} : _) ->
+                         L.drop 1 $ encodeASN1 DER $ pure v
+                   _ -> error "bad pubkey sequence"
+{-# SPECIALIZE pubKeyHash :: Certificate -> Digest SHA1 #-}
+
+toCertId :: Certificate -> Certificate -> CertId
+toCertId cert issuerCert =
     let h1 = BA.convert $ issuerDNHash @SHA1 cert
         h2 = BA.convert $ pubKeyHash @SHA1 issuerCert
         sn = certSerial cert
@@ -128,7 +128,7 @@ encodeOCSPRequestASN1
     -> Certificate              -- ^ Issuer certificate
     -> ([ASN1], CertId)
 encodeOCSPRequestASN1 cert issuerCert =
-    let certId = newCertId cert issuerCert
+    let certId = toCertId cert issuerCert
     in ( Start Sequence
          : Start Sequence
          : Start Sequence
@@ -323,10 +323,9 @@ getOCSPResponseVerificationData'
     :: [ASN1]                   -- ^ OCSP response payload
     -> Maybe OCSPResponseVerificationData
 getOCSPResponseVerificationData' (Start Sequence : Start Sequence : c1)
-    | (resp, Start Sequence : c2) <- getConstructedEnd 0 c1
-    , (alg, BitString (BitArray _ sig) : c3) <- getConstructedEnd 0 c2 = do
-        (alg', []) <- fromASN1' $ wrapInSequence alg
-        let der = encodeASN1' DER $ wrapInSequence resp
+    | (resp, c2) <- getConstructedEnd 0 c1
+    , Right (alg, BitString (BitArray _ sig) : c3) <- fromASN1 c2 = do
+        let der = encodeASN1' DER $ Start Sequence : resp ++ [End Sequence]
         case c3 of
             [End Sequence] -> Just []
             _ | Start (Container Context 0)
@@ -335,23 +334,17 @@ getOCSPResponseVerificationData' (Start Sequence : Start Sequence : c1)
                       getCurrentContainerContents c3 ->
                           reverse <$> collectCerts certs []
               | otherwise -> Nothing
-            >>= Just . OCSPResponseVerificationData der alg' sig
+            >>= Just . OCSPResponseVerificationData der alg sig
     where collectCerts (Start Sequence : c4) certs
-              | (Start Sequence : cert, c5) <- getConstructedEnd 0 c4
-              , (cert', Start Sequence : c6) <- getConstructedEnd 0 cert
-              , (alg, [BitString (BitArray _ sig)]) <-
-                  getConstructedEnd 0 c6 = do
-                      (alg', []) <- fromASN1' $ wrapInSequence alg
-                      (cert'', []) <- fromASN1' cert'
-                      collectCerts c5 $
-                          ( Signed cert'' alg' sig
-                          , encodeASN1' DER $ wrapInSequence cert'
-                          ) : certs
+              | (c5@(Start Sequence : c6), next) <- getConstructedEnd 0 c4
+              , Right (cert, End Sequence : c7) <- fromASN1 c6
+              , Right (alg, [BitString (BitArray _ sig)]) <- fromASN1 c7 =
+                  collectCerts next $
+                      (Signed cert alg sig, encodeASN1' DER c5) : certs
           collectCerts [End Sequence, End (Container Context 0)] certs =
               Just certs
           collectCerts _ _ =
               Nothing
-          wrapInSequence = (Start Sequence :) . (++ [End Sequence])
 getOCSPResponseVerificationData' _ = Nothing
 
 getCurrentContainerContents :: [ASN1] -> [ASN1]
@@ -359,7 +352,4 @@ getCurrentContainerContents = fst . getConstructedEnd 0
 
 skipCurrentContainer :: [ASN1] -> [ASN1]
 skipCurrentContainer = snd . getConstructedEnd 0
-
-fromASN1' :: ASN1Object a => [ASN1] -> Maybe (a, [ASN1])
-fromASN1' = either (const Nothing) Just . fromASN1
 

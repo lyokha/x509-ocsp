@@ -1,6 +1,7 @@
 ### 0.5.1.0
 
-- Do not export the constructor of *CertId*.
+- Hide the constructor of *CertId*.
+- Refactor function *getOCSPResponseVerificationData'*.
 
 ### 0.5.0.0
 
