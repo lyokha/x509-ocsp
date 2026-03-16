@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternSynonyms, ViewPatterns, TypeApplications, LambdaCase #-}
-{-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE TupleSections, ImportQualifiedPost #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -50,6 +50,7 @@ import Data.Bits
 import Data.Bifunctor
 import Data.ByteArray qualified as BA
 import Crypto.Hash
+import Control.Monad
 
 pattern OidAlgorithmSHA1 :: OID
 pattern OidAlgorithmSHA1 = [1, 3, 14, 3, 2, 26]
@@ -322,10 +323,10 @@ getOCSPResponseVerificationData _ = Nothing
 getOCSPResponseVerificationData'
     :: [ASN1]                   -- ^ OCSP response payload
     -> Maybe OCSPResponseVerificationData
-getOCSPResponseVerificationData' (Start Sequence : Start Sequence : c1)
-    | (resp, c2) <- getConstructedEnd 0 c1
-    , Right (alg, BitString (BitArray _ sig) : c3) <- fromASN1 c2 = do
-        let der = encodeASN1' DER $ Start Sequence : resp ++ [End Sequence]
+getOCSPResponseVerificationData' (Start Sequence : c1@(Start Sequence : _))
+    | (join bimap $ map fst -> (encodeASN1' DER -> resp, c2)) <-
+        getConstructedEndRepr $ map (, []) c1
+    , Right (alg, BitString (BitArray _ sig) : c3) <- fromASN1 c2 =
         case c3 of
             [End Sequence] -> Just []
             _ | Start (Container Context 0)
@@ -334,7 +335,7 @@ getOCSPResponseVerificationData' (Start Sequence : Start Sequence : c1)
                       getCurrentContainerContents c3 ->
                           reverse <$> collectCerts certs []
               | otherwise -> Nothing
-            >>= Just . OCSPResponseVerificationData der alg sig
+        >>= Just . OCSPResponseVerificationData resp alg sig
     where collectCerts (Start Sequence : c4) certs
               | (c5@(Start Sequence : c6), next) <- getConstructedEnd 0 c4
               , Right (cert, End Sequence : c7) <- fromASN1 c6
@@ -347,9 +348,9 @@ getOCSPResponseVerificationData' (Start Sequence : Start Sequence : c1)
               Nothing
 getOCSPResponseVerificationData' _ = Nothing
 
-getCurrentContainerContents :: [ASN1] -> [ASN1]
+getCurrentContainerContents :: ASN1S
 getCurrentContainerContents = fst . getConstructedEnd 0
 
-skipCurrentContainer :: [ASN1] -> [ASN1]
+skipCurrentContainer :: ASN1S
 skipCurrentContainer = snd . getConstructedEnd 0
 

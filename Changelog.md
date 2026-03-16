@@ -1,3 +1,8 @@
+### 0.5.1.1
+
+- Use *getConstructedEndRepr* when the end of the sequence is required to be
+  collected.
+
 ### 0.5.1.0
 
 - Hide the constructor of *CertId*.
