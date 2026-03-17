@@ -65,6 +65,14 @@ instance OIDNameable AIAMethod where
 newtype ExtAuthorityInfoAccess = ExtAuthorityInfoAccess [AuthorityInfoAccess]
     deriving (Show, Eq)
 
+pattern Asn1ExtAIAOCSP :: OID -> ByteString -> ASN1S
+pattern Asn1ExtAIAOCSP method location xs =
+    Start Sequence
+    : OID method
+    : Other Context 6 location
+    : End Sequence
+    : xs
+
 data DecState = DecStart | DecMethod | DecLocation OID | DecEnd
 
 instance Extension ExtAuthorityInfoAccess where
@@ -72,18 +80,15 @@ instance Extension ExtAuthorityInfoAccess where
     extHasNestedASN1 = const True
     extEncode (ExtAuthorityInfoAccess aia) =
         Start Sequence
-        : concatMap (\AuthorityInfoAccess {..} ->
-                        case aiaMethod of
-                            OCSP ->
-                                [ Start Sequence
-                                , OID $ getObjectID aiaMethod
-                                , Other Context 6 aiaLocation
-                                , End Sequence
-                                ]
-                            CAIssuers ->
-                                error "encoding CA Issuers is not implemented"
-                    ) aia
-        ++ [End Sequence]
+        : foldr (\AuthorityInfoAccess {..} encAia ->
+                    case aiaMethod of
+                        OCSP ->
+                            Asn1ExtAIAOCSP (getObjectID OCSP) aiaLocation
+                                encAia
+                        CAIssuers ->
+                            error "extEncode: \
+                                  \encoding CA Issuers is not implemented"
+                ) [End Sequence] aia
     extDecode [Start Sequence, End Sequence] =
         Right $ ExtAuthorityInfoAccess []
     extDecode (Start Sequence : encAia) =
@@ -102,7 +107,7 @@ instance Extension ExtAuthorityInfoAccess where
               go DecEnd [End Sequence, End Sequence] =
                   Right . ExtAuthorityInfoAccess . reverse
               go _ _ =
-                  const $ Left "bad AIA sequence"
+                  const $ Left "extDecode: bad AIA sequence"
     extDecode _ =
-        Left "bad AIA sequence"
+        Left "extDecode: bad AIA sequence"
 

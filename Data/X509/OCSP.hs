@@ -109,7 +109,7 @@ pubKeyHash cert = hashlazy $ L.drop (succ $ derLWidth $ L.head pk) pk
                      : OID _
                      : (skipCurrentContainer -> v@BitString {} : _) ->
                          L.drop 1 $ encodeASN1 DER $ pure v
-                   _ -> error "bad pubkey sequence"
+                   _ -> error "pubKeyHash: bad pubkey sequence"
 {-# SPECIALIZE pubKeyHash :: Certificate -> Digest SHA1 #-}
 
 toCertId :: Certificate -> Certificate -> CertId
