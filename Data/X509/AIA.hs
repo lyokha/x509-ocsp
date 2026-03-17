@@ -65,10 +65,10 @@ instance OIDNameable AIAMethod where
 newtype ExtAuthorityInfoAccess = ExtAuthorityInfoAccess [AuthorityInfoAccess]
     deriving (Show, Eq)
 
-pattern Asn1ExtAIAOCSP :: OID -> ByteString -> ASN1S
-pattern Asn1ExtAIAOCSP method location xs =
+pattern Asn1ExtAIAOCSP :: ByteString -> ASN1S
+pattern Asn1ExtAIAOCSP location xs =
     Start Sequence
-    : OID method
+    : OID OidOCSP
     : Other Context 6 location
     : End Sequence
     : xs
@@ -83,8 +83,7 @@ instance Extension ExtAuthorityInfoAccess where
         : foldr (\AuthorityInfoAccess {..} encAia ->
                     case aiaMethod of
                         OCSP ->
-                            Asn1ExtAIAOCSP (getObjectID OCSP) aiaLocation
-                                encAia
+                            Asn1ExtAIAOCSP aiaLocation encAia
                         CAIssuers ->
                             error "extEncode: \
                                   \encoding CA Issuers is not implemented"
