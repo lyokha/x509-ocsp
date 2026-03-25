@@ -326,22 +326,24 @@ getOCSPResponseVerificationData'
 getOCSPResponseVerificationData' (Start Sequence : c1@(Start Sequence : _))
     | (join bimap $ map fst -> (encodeASN1' DER -> resp, c2)) <-
         getConstructedEndRepr $ map (, []) c1
-    , Right (alg, BitString (BitArray _ sig) : c3) <- fromASN1 c2 =
-        case c3 of
-            [End Sequence] -> Just []
-            _ | Start (Container Context 0)
-                  : Start Sequence
-                  : certs@(Start Sequence : _) <-
-                      getCurrentContainerContents c3 ->
-                          reverse <$> collectCerts certs []
-              | otherwise -> Nothing
-        >>= Just . OCSPResponseVerificationData resp alg sig
+    , Right (alg, BitString (bitArrayGetData -> sig) : c3) <-
+        fromASN1 c2 =
+            case c3 of
+                [End Sequence] -> Just []
+                _ | Start (Container Context 0)
+                      : Start Sequence
+                      : certs@(Start Sequence : _) <-
+                          getCurrentContainerContents c3 ->
+                              reverse <$> collectCerts certs []
+                  | otherwise -> Nothing
+            >>= Just . OCSPResponseVerificationData resp alg sig
     where collectCerts (Start Sequence : c4) certs
               | (c5@(Start Sequence : c6), next) <- getConstructedEnd 0 c4
               , Right (cert, End Sequence : c7) <- fromASN1 c6
-              , Right (alg, [BitString (BitArray _ sig)]) <- fromASN1 c7 =
-                  collectCerts next $
-                      (Signed cert alg sig, encodeASN1' DER c5) : certs
+              , Right (alg, [BitString (bitArrayGetData -> sig)]) <-
+                  fromASN1 c7 =
+                      collectCerts next $
+                          (Signed cert alg sig, encodeASN1' DER c5) : certs
           collectCerts [End Sequence, End (Container Context 0)] certs =
               Just certs
           collectCerts _ _ =

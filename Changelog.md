@@ -1,3 +1,7 @@
+### 0.5.2.1
+
+- Obtain signatures indirectly, via *bitArrayGetData*.
+
 ### 0.5.2.0
 
 - Use *getConstructedEndRepr* when the end of the sequence is required to be
