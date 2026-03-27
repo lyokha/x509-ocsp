@@ -191,6 +191,26 @@ data OCSPResponseCertStatus = OCSPRespCertGood
                             | OCSPRespCertUnknown
                             deriving (Show, Eq, Bounded, Enum)
 
+pattern Asn1OCSPResponseEmpty :: OCSPResponseStatus -> [ASN1]
+pattern Asn1OCSPResponseEmpty rst <-
+    [ Start Sequence
+    , Enumerated (toEnum . fromIntegral -> rst)
+    , End Sequence
+    ]
+
+pattern Asn1OCSPResponseValue :: OCSPResponseStatus -> ByteString -> [ASN1]
+pattern Asn1OCSPResponseValue rst val <-
+    [ Start Sequence
+    , Enumerated (toEnum . fromIntegral -> rst)
+    , Start (Container Context 0)
+    , Start Sequence
+    , OID OidBasicOCSPResponse
+    , OctetString val
+    , End Sequence
+    , End (Container Context 0)
+    , End Sequence
+    ]
+
 -- | Decode OCSP response.
 --
 -- The value of the /certificate id/ is expected to be equal to what was
@@ -204,57 +224,46 @@ decodeOCSPResponse
     -> L.ByteString             -- ^ Raw encoded OCSP response
     -> Either ASN1Error (Maybe OCSPResponse)
 decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
-    [ Start Sequence
-      , Enumerated (toEnum . fromIntegral -> v)
-      , End Sequence
-      ] -> Right $ Just $ OCSPResponse v Nothing
-    [ Start Sequence
-      , Enumerated (toEnum . fromIntegral -> v)
-      , Start (Container Context 0)
-      , Start Sequence
-      , OID OidBasicOCSPResponse
-      , OctetString resp'
-      , End Sequence
-      , End (Container Context 0)
-      , End Sequence
-      ] -> do
-          pl <- decodeASN1' DER resp'
-          Right $
-              case pl of
-                  Start Sequence
-                    : Start Sequence
-                    : Start (Container Context ctx)
-                    : c1 | ctx `elem` [0..2] -> do
-                        let skipVersion
-                                | ctx == 0 = drop 1 . skipCurrentContainer
-                                | otherwise = id
-                        Just $ getCurrentContainerContents $
-                            drop 2 $ skipCurrentContainer $ skipVersion c1
-                  _ -> Nothing
-              >>= \case
-                      Start Sequence
-                        : (fromASN1 -> Right (cId, c2)) | cId == certId ->
-                            case c2 of
-                                Other Context (toEnum -> n) _
-                                  : c3 -> Just (n, c3)
-                                Start (Container Context (toEnum -> n))
-                                  : c3 -> Just (n, skipCurrentContainer c3)
-                                _ -> Nothing
-                      _ -> Nothing
-              >>= \(n, tc1) -> case tc1 of
-                                   tu@(ASN1Time TimeGeneralized _ _)
-                                     : c4 -> Just (n, tu, c4)
-                                   _ -> Nothing
-              >>= \(st, tu, tc2) -> do
-                  let nu = case tc2 of
-                               Start (Container Context 0)
-                                 : t@(ASN1Time TimeGeneralized _ _)
-                                 : End (Container Context 0)
-                                 : _ -> Just t
-                               _ -> Nothing
-                  Just $ OCSPResponse v $
-                      Just $ OCSPResponsePayload
-                          (OCSPResponseCertData st tu nu) pl
+    Asn1OCSPResponseEmpty rst ->
+        Right $ Just $ OCSPResponse rst Nothing
+    Asn1OCSPResponseValue rst val -> do
+        pl <- decodeASN1' DER val
+        Right $
+            case pl of
+                Start Sequence
+                  : Start Sequence
+                  : Start (Container Context ctx)
+                  : c1 | ctx `elem` [0..2] -> do
+                      let skipVersion
+                              | ctx == 0 = drop 1 . skipCurrentContainer
+                              | otherwise = id
+                      Just $ getCurrentContainerContents $
+                          drop 2 $ skipCurrentContainer $ skipVersion c1
+                _ -> Nothing
+            >>= \case
+                    Start Sequence
+                      : (fromASN1 -> Right (cId, c2)) | cId == certId ->
+                          case c2 of
+                              Other Context (toEnum -> n) _
+                                : c3 -> Just (n, c3)
+                              Start (Container Context (toEnum -> n))
+                                : c3 -> Just (n, skipCurrentContainer c3)
+                              _ -> Nothing
+                    _ -> Nothing
+            >>= \(n, tc1) -> case tc1 of
+                                 tu@(ASN1Time TimeGeneralized _ _)
+                                   : c4 -> Just (n, tu, c4)
+                                 _ -> Nothing
+            >>= \(st, tu, tc2) -> do
+                let nu = case tc2 of
+                             Start (Container Context 0)
+                               : t@(ASN1Time TimeGeneralized _ _)
+                               : End (Container Context 0)
+                               : _ -> Just t
+                             _ -> Nothing
+                Just $ OCSPResponse rst $
+                    Just $ OCSPResponsePayload
+                        (OCSPResponseCertData st tu nu) pl
     _ -> Right Nothing
 
 -- | Verification data from OCSP response payload.
