@@ -244,17 +244,17 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                     Start Sequence
                       : (fromASN1 -> Right (cId, c2)) | cId == certId ->
                           case c2 of
-                              Other Context (toEnum -> n) _
-                                : c3 -> Just (n, c3)
-                              Start (Container Context (toEnum -> n))
-                                : c3 -> Just (n, skipCurrentContainer c3)
+                              Other Context (toEnum -> st) _
+                                : c3 -> Just (st, c3)
+                              Start (Container Context (toEnum -> st))
+                                : c3 -> Just (st, skipCurrentContainer c3)
                               _ -> Nothing
                     _ -> Nothing
-            >>= \(n, tc1) -> case tc1 of
-                                 tu@(ASN1Time TimeGeneralized _ _)
-                                   : c4 -> Just (n, tu, c4)
-                                 _ -> Nothing
-            >>= \(st, tu, tc2) -> do
+            >>= \(st, tc1) -> case tc1 of
+                                  tu@(ASN1Time TimeGeneralized _ _)
+                                    : c4 -> Just (st, tu, c4)
+                                  _ -> Nothing
+            >>= \(cst, tu, tc2) -> do
                 let nu = case tc2 of
                              Start (Container Context 0)
                                : t@(ASN1Time TimeGeneralized _ _)
@@ -263,7 +263,7 @@ decodeOCSPResponse certId resp = decodeASN1 DER resp >>= \case
                              _ -> Nothing
                 Just $ OCSPResponse rst $
                     Just $ OCSPResponsePayload
-                        (OCSPResponseCertData st tu nu) pl
+                        (OCSPResponseCertData cst tu nu) pl
     _ -> Right Nothing
 
 -- | Verification data from OCSP response payload.
