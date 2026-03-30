@@ -320,9 +320,8 @@ data OCSPResponseVerificationData =
 getOCSPResponseVerificationData
     :: OCSPResponse             -- ^ OCSP response
     -> Maybe OCSPResponseVerificationData
-getOCSPResponseVerificationData (ocspRespPayload -> Just pl) =
-    getOCSPResponseVerificationData' $ ocspRespASN1 pl
-getOCSPResponseVerificationData _ = Nothing
+getOCSPResponseVerificationData =
+    ocspRespPayload >=> getOCSPResponseVerificationData' . ocspRespASN1
 
 -- | Get verification data from OCSP response payload.
 --
