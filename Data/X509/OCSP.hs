@@ -323,6 +323,12 @@ getOCSPResponseVerificationData
 getOCSPResponseVerificationData =
     ocspRespPayload >=> getOCSPResponseVerificationData' . ocspRespASN1
 
+pattern Asn1OCSPResponseCerts :: ASN1S
+pattern Asn1OCSPResponseCerts certs <-
+    Start (Container Context 0)
+    : Start Sequence
+    : certs@(Start Sequence : _)
+
 -- | Get verification data from OCSP response payload.
 --
 -- This is a variant of 'getOCSPResponseVerificationData' that accepts the
@@ -338,12 +344,9 @@ getOCSPResponseVerificationData' (Start Sequence : c1@(Start Sequence : _))
         fromASN1 c2 =
             case c3 of
                 [End Sequence] -> Just []
-                _ | Start (Container Context 0)
-                      : Start Sequence
-                      : certs@(Start Sequence : _) <-
-                          getCurrentContainerContents c3 ->
-                              reverse <$> collectCerts certs []
-                  | otherwise -> Nothing
+                (getCurrentContainerContents -> Asn1OCSPResponseCerts certs) ->
+                    reverse <$> collectCerts certs []
+                _ -> Nothing
             >>= Just . OCSPResponseVerificationData resp alg sig
     where collectCerts (Start Sequence : c4) certs
               | (c5@(Start Sequence : c6), next) <- getConstructedEnd 0 c4

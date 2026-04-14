@@ -1,6 +1,7 @@
 ### 0.5.2.1
 
 - Obtain signatures indirectly, via *bitArrayGetData*.
+- Use more pattern synonyms internally to reach better readability.
 
 ### 0.5.2.0
 
