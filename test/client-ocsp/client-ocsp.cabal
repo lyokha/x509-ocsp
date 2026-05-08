@@ -23,7 +23,7 @@ executable client-ocsp
                       , crypton-asn1-types
                       , tls >= 2.3.0
                       , time-hourglass
-                      , data-default
+                      , data-default >= 0.8
                       , x509-ocsp
 
   main-is:              client-ocsp.hs
