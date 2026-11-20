@@ -37,7 +37,6 @@ mkManager man = do
                   { supportedCiphers = ciphersuite_default }
               }
 
--- Note: (mis)using CacheSaysNo reason on OCSP failures.
 validateWithOCSPReq :: Manager -> OnServerCertificate
 validateWithOCSPReq man store cache sid
         chain@(CertificateChain (map getCertificate -> certs)) =
@@ -114,7 +113,7 @@ validateWithOCSPReq man store cache sid
           go verr _ =
               return verr
           success = []
-          failure = pure . CacheSaysNo
+          failure = pure . OtherReason
           checks = foldl1 (<>)
 
 verifySignature' :: [ASN1] -> Certificate -> SignatureVerification

@@ -4,7 +4,7 @@ Basic X509 OCSP implementation in Haskell
 [![Build Status](https://github.com/lyokha/x509-ocsp/workflows/CI/badge.svg)](https://github.com/lyokha/x509-ocsp/actions?query=workflow%3ACI)
 [![Hackage](https://img.shields.io/hackage/v/x509-ocsp.svg?label=hackage%20%7C%20x509-ocsp&logo=haskell&logoColor=%239580D1)](https://hackage.haskell.org/package/x509-ocsp)
 
-This module helps building OCSP requests and parse OCSP responses in Haskell.
+This module helps build OCSP requests and parse OCSP responses in Haskell.
 
 There are many scenarios of OCSP use. One of the simplest practical use cases
 for clients is sending OCSP requests to the OCSP responder upon validation of
@@ -82,7 +82,7 @@ Exception: HttpExceptionRequest Request {
   requestVersion       = HTTP/1.1
   proxySecureMode      = ProxySecureWithConnect
 }
- (InternalException (HandshakeFailed (Error_Protocol "certificate rejected: [CacheSaysNo \"OCSP: bad certificate status OCSPRespCertRevoked\"]" CertificateUnknown)))
+ (InternalException (HandshakeFailed (Error_Protocol "certificate rejected: [OtherReason \"OCSP: bad certificate status OCSPRespCertRevoked\"]; ..." CertificateUnknown)))
 ```
 
  The certificate has been revoked and the handshake fails.

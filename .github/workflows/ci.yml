@@ -9,15 +9,16 @@ jobs:
     continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
-        ghc: ['9.6', '9.8', '9.10', '9.12', '9.14']
+        ghc: ['9.6', '9.8', '9.10', '9.12']
+        cabal: ['3.16']
         include:
-          - cabal: '3.16'
           - experimental: false
           - ghc: '9.14'
-            allownewer: true
+            cabal: '3.18'
+            experimental: false
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install GHC and Cabal
         uses: haskell-actions/setup@v2
         with:

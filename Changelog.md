@@ -1,3 +1,9 @@
+### 0.5.2.2
+
+- Update README.md after switching the failed reason in function
+  *validateWithOCSPReq* in the *client-ocsp* example from *CacheSaysNo* to
+  *OtherReason*.
+
 ### 0.5.2.1
 
 - Obtain signatures indirectly, via *bitArrayGetData*.
