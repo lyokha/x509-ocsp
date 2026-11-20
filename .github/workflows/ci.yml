@@ -16,6 +16,7 @@ jobs:
           - ghc: '9.14'
             cabal: '3.18'
             experimental: false
+            allownewer: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
