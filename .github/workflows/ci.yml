@@ -43,7 +43,10 @@ jobs:
           ALLOW_NEWER: ${{ matrix.allownewer }}
         working-directory: test/client-ocsp
         run: |
-          printf '\nallow-newer: %s\n' "$ALLOW_NEWER" >> cabal.project
+          if [ -n "$ALLOW_NEWER" ]
+          then
+              printf '\nallow-newer: %s\n' "$ALLOW_NEWER" >> cabal.project
+          fi
           cabal build
 
       - name: Generate certificates
