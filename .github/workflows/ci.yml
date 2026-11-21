@@ -16,7 +16,7 @@ jobs:
           - ghc: '9.14'
             cabal: '3.18'
             experimental: false
-            allownewer: true
+            allownewer: serialise:base
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -39,17 +39,16 @@ jobs:
           cabal build
 
       - name: Build OCSP-aware HTTP client
+        env:
+          ALLOW_NEWER: ${{ matrix.allownewer }}
+        working-directory: test/client-ocsp
         run: |
-          cd test/client-ocsp
-          if [ "${{ matrix.allownewer }}" = true ]
-          then
-              echo "allow-newer: all" >> cabal.project
-          fi
+          printf '\nallow-newer: %s\n' "$ALLOW_NEWER" >> cabal.project
           cabal build
 
       - name: Generate certificates
+        working-directory: test/data
         run: |
-          cd test/data
           sed -i "s'\(^database\s*=\s*\).*'\1$(pwd)/index.txt'" \
               certs/openssl.cnf
           openssl genrsa -out certs/root/rootCA.key 2048
