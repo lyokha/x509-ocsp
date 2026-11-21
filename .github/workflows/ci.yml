@@ -16,7 +16,7 @@ jobs:
           - ghc: '9.14'
             cabal: '3.18'
             experimental: false
-            allownewer: serialise:base
+            allownewer: 'cborg:base, serialise:base'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
